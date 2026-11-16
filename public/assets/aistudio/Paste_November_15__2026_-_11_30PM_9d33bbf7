@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#059669" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>KaamWala — Verified Home Services</title>
+  <style>
+    :root {
+      --primary: #059669;
+      --primary-dark: #064e3b;
+      --primary-light: #ecfdf5;
+      --dark: #0f172a;
+      --muted: #64748b;
+      --bg: #f1f5f9;
+      --border: #e2e8f0;
+      --danger: #dc2626;
+      --shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.08);
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      background: #cbd5e1;
+      color: var(--dark);
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .phone-shell {
+      width: 100%;
+      max-width: 440px;
+      min-height: 100vh;
+      background: var(--bg);
+      position: relative;
+      padding-bottom: 88px;
+      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.3);
+      overflow-x: hidden;
+    }
+    .hero {
+      background: linear-gradient(155deg, rgba(6,78,59,0.95), rgba(15,23,42,0.93)),
+                  url('https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=80') center/cover;
+      color: #fff;
+      padding: 14px 16px 20px;
+      border-bottom-left-radius: 26px;
+      border-bottom-right-radius: 26px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 6px;
+    }
+    .brand-wrap { display: flex; align-items: center; gap: 9px; cursor: pointer; }
+    .brand-logo {
+      width: 36px; height: 36px; border-radius: 12px;
+      background: linear-gradient(135deg, #34d399, #059669);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 19px; user-select: none;
+    }
+    .brand-name { font-size: 17px; font-weight: 800; }
+    .brand-tag { font-size: 10px; color: #a7f3d0; display: block; font-weight: 600; }
+    .top-actions { display: flex; gap: 5px; align-items: center; }
+    .pill-btn {
+      background: rgba(255,255,255,0.16);
+      border: 1px solid rgba(255,255,255,0.24);
+      color: #fff; padding: 5px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 700; cursor: pointer;
+    }
+    .icon-btn {
+      width: 31px; height: 31px; border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.16);
+      color: #fff; font-size: 14px; cursor: pointer;
+    }
+    .hero-title { font-size: 19px; font-weight: 800; line-height: 1.28; margin-bottom: 6px; }
+    .hero-stats { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+    .hero-stat {
+      font-size: 10.5px; font-weight: 700; color: #ecfdf5;
+      background: rgba(255,255,255,0.13); padding: 3px 8px; border-radius: 8px;
+    }
+    .search-box {
+      display: flex; align-items: center; gap: 8px;
+      background: #fff; border-radius: 14px; padding: 10px 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.16);
+    }
+    .search-box input {
+      border: none; outline: none; width: 100%;
+      font-size: 13px; color: var(--dark); background: transparent; padding: 0;
+    }
+    .ai-box {
+      margin: 11px 16px 0; background: #ecfdf5;
+      border: 1.5px solid #6ee7b7; border-radius: 14px; padding: 11px 12px;
+    }
+    .reminder-bar {
+      margin: 11px 16px 0; background: #fffbeb;
+      border: 1px solid #fcd34d; border-radius: 14px; padding: 9px 12px;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    }
+    .promo-strip {
+      margin: 10px 16px 0; background: linear-gradient(135deg, #065f46, #047857);
+      color: #fff; border-radius: 16px; padding: 11px 14px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .promo-code {
+      background: #fef3c7; color: #92400e; font-weight: 800; font-size: 11px;
+      padding: 5px 9px; border-radius: 8px; border: 1px dashed #d97706; cursor: pointer;
+    }
+    .cat-row { display: flex; gap: 7px; overflow-x: auto; padding: 12px 16px 2px; scrollbar-width: none; }
+    .cat-row::-webkit-scrollbar { display: none; }
+    .cat-chip {
+      flex-shrink: 0; background: #fff; border: 1.5px solid var(--border);
+      padding: 7px 12px; border-radius: 22px; font-size: 11.5px;
+      font-weight: 700; color: #475569; cursor: pointer;
+    }
+    .cat-chip.active { background: var(--dark); border-color: var(--dark); color: #fff; }
+    .cat-chip.pink-active { background: #be185d; border-color: #be185d; color: #fff; }
+
+    .section { padding: 13px 16px 4px; }
+    .sec-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .sec-title { font-size: 15px; font-weight: 800; color: var(--dark); }
+    .sec-link { font-size: 11px; font-weight: 700; color: var(--primary); cursor: pointer; }
+
+    .services-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 11px; }
+    .svc-card {
+      background: #fff; border-radius: 16px; overflow: hidden;
+      border: 1px solid var(--border); cursor: pointer; box-shadow: var(--shadow);
+    }
+    .svc-img-wrap { position: relative; height: 102px; background: #cbd5e1; overflow: hidden; }
+    .svc-img-wrap::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(to top, rgba(15,23,42,0.65) 0%, transparent 60%);
+    }
+    .svc-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .svc-badge {
+      position: absolute; top: 7px; left: 7px; z-index: 2;
+      background: rgba(15,23,42,0.78); color: #fff;
+      font-size: 9.5px; font-weight: 700; padding: 3px 7px; border-radius: 7px;
+    }
+    .svc-eta {
+      position: absolute; bottom: 6px; right: 6px; z-index: 2;
+      background: #ecfdf5; color: #065f46; font-size: 9.5px;
+      font-weight: 800; padding: 2px 6px; border-radius: 6px;
+    }
+    .svc-body { padding: 9px 10px 10px; }
+    .svc-name { font-size: 13px; font-weight: 800; color: var(--dark); margin-bottom: 2px; }
+    .svc-desc {
+      font-size: 10.5px; color: var(--muted); margin-bottom: 8px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .svc-foot { display: flex; justify-content: space-between; align-items: center; }
+    .svc-price { font-size: 12px; font-weight: 800; color: var(--primary); }
+    .svc-btn {
+      font-size: 10.5px; font-weight: 800; color: #fff;
+      background: var(--primary); padding: 4px 10px; border-radius: 8px;
+    }
+
+    .dual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .action-tile {
+      border-radius: 16px; padding: 12px; color: #fff; cursor: pointer;
+      display: flex; flex-direction: column; justify-content: space-between; min-height: 90px;
+    }
+    .h-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
+    .h-scroll::-webkit-scrollbar { display: none; }
+    .plan-card {
+      flex-shrink: 0; width: 205px; background: linear-gradient(145deg,#0f172a,#1e293b);
+      color: #fff; border-radius: 16px; padding: 12px;
+    }
+    .pro-card {
+      flex-shrink: 0; width: 144px; background: #fff; border: 1px solid var(--border);
+      border-radius: 16px; padding: 10px; text-align: center;
+    }
+    .pro-avatar {
+      width: 52px; height: 52px; border-radius: 50%; object-fit: cover;
+      border: 2px solid var(--primary); margin: 0 auto 6px; display: block;
+    }
+
+    .card {
+      background: #fff; border: 1px solid var(--border);
+      border-radius: 15px; padding: 13px; margin-bottom: 10px;
+    }
+    label { display: block; font-size: 11.5px; font-weight: 700; color: #334155; margin: 9px 0 4px; }
+    input, select, textarea {
+      width: 100%; padding: 9px 11px; border: 1.5px solid var(--border);
+      border-radius: 10px; font-size: 13.5px; background: #f8fafc; color: var(--dark); outline: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--primary); background: #fff; }
+    textarea { min-height: 54px; resize: vertical; }
+
+    .btn {
+      width: 100%; border: none; padding: 11px 12px; border-radius: 12px;
+      font-size: 12.5px; font-weight: 800; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+      text-decoration: none;
+    }
+    .btn-primary { background: linear-gradient(135deg,#10b981,#059669); color: #fff; }
+    .btn-dark { background: var(--dark); color: #fff; }
+    .btn-outline { background: #fff; color: var(--primary); border: 1.5px solid var(--primary); }
+    .btn-danger { background: #fee2e2; color: var(--danger); }
+    .btn-warn { background: #fef3c7; color: #92400e; }
+    .btn-sm { padding: 7px 10px; font-size: 11px; border-radius: 9px; }
+
+    .subtabs { display: flex; gap: 6px; margin-bottom: 12px; background: #e2e8f0; padding: 4px; border-radius: 12px; }
+    .subtab {
+      flex: 1; border: none; background: transparent; padding: 7px 4px;
+      border-radius: 9px; font-size: 11.5px; font-weight: 800; color: #475569; cursor: pointer;
+    }
+    .subtab.active { background: #fff; color: var(--primary); }
+
+    .radar-box { background: linear-gradient(135deg,#064e3b,#0f172a); border-radius: 12px; padding: 10px 12px; color: #fff; margin: 8px 0; }
+    .radar-track { height: 4px; background: rgba(255,255,255,0.2); border-radius: 4px; margin: 10px 0 4px; position: relative; }
+    .radar-fill { height: 100%; width: 65%; background: #34d399; border-radius: 4px; }
+    .radar-pin { position: absolute; top: -11px; left: 62%; font-size: 16px; animation: movePin 2.2s ease-in-out infinite alternate; }
+    @keyframes movePin { from { left: 45%; } to { left: 78%; } }
+
+    .stepper { display: flex; justify-content: space-between; margin: 10px 0 6px; position: relative; }
+    .stepper::before { content: ""; position: absolute; top: 10px; left: 8%; right: 8%; height: 2px; background: #e2e8f0; }
+    .step-item { position: relative; z-index: 1; text-align: center; flex: 1; }
+    .step-dot {
+      width: 20px; height: 20px; border-radius: 50%; margin: 0 auto 3px;
+      background: #e2e8f0; color: #64748b; font-size: 10px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-item.done .step-dot { background: var(--primary); color: #fff; }
+    .step-lbl { font-size: 9px; font-weight: 700; color: var(--muted); }
+    .step-item.done .step-lbl { color: var(--primary); }
+
+    .pill { font-size: 9.5px; font-weight: 800; padding: 3px 8px; border-radius: 12px; text-transform: uppercase; }
+    .pill-pending { background: #fef3c7; color: #92400e; }
+    .pill-accepted { background: #dbeafe; color: #1e40af; }
+    .pill-in_progress { background: #ede9fe; color: #5b21b6; }
+    .pill-completed { background: #d1fae5; color: #065f46; }
+    .pill-urgent { background: #fee2e2; color: #dc2626; }
+
+    .wallet-hero { background: linear-gradient(135deg,#0f172a,#1e293b); color: #fff; border-radius: 16px; padding: 14px; margin-bottom: 12px; }
+    .wallet-bal { font-size: 24px; font-weight: 900; color: #34d399; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; margin-bottom: 12px; }
+    .kpi-card { background: #fff; border: 1px solid var(--border); border-radius: 13px; padding: 11px; }
+    .kpi-val { font-size: 17px; font-weight: 900; color: var(--primary); }
+    .kpi-lbl { font-size: 10.5px; color: var(--muted); font-weight: 700; }
+
+    .heat-row { margin-bottom: 8px; }
+    .heat-track { height: 8px; background: #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 3px; }
+    .heat-fill { height: 100%; background: linear-gradient(90deg, #10b981, #f59e0b); border-radius: 6px; }
+
+    .chat-box {
+      max-height: 220px; overflow-y: auto; background: #f8fafc; border: 1px solid var(--border);
+      border-radius: 12px; padding: 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .chat-msg { max-width: 82%; padding: 7px 10px; border-radius: 12px; font-size: 12px; line-height: 1.4; }
+    .chat-me { align-self: flex-end; background: var(--primary); color: #fff; border-bottom-right-radius: 3px; }
+    .chat-them { align-self: flex-start; background: #fff; border: 1px solid var(--border); color: var(--dark); border-bottom-left-radius: 3px; }
+
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; margin: 0 auto;
+      width: 100%; max-width: 440px;
+      background: #ffffff; border-top: 1px solid var(--border);
+      display: flex; z-index: 40;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .nav-item {
+      flex: 1; border: none; background: none; padding: 8px 4px 10px;
+      font-size: 10.5px; font-weight: 700; color: var(--muted); cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+    }
+    .nav-item.active { color: var(--primary); }
+    .nav-ico { font-size: 18px; }
+
+    .overlay {
+      position: fixed; inset: 0; background: rgba(15,23,42,0.62);
+      z-index: 80; display: flex; align-items: flex-end; justify-content: center;
+    }
+    .overlay.center { align-items: center; padding: 14px; }
+    .overlay.hidden { display: none; }
+    .sheet {
+      width: 100%; max-width: 440px; max-height: 92vh; overflow-y: auto;
+      background: #fff; border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 16px 16px 24px;
+    }
+    .modal-box {
+      width: 100%; max-width: 395px; max-height: 88vh; overflow-y: auto;
+      background: #fff; border-radius: 20px; padding: 16px;
+    }
+    .slot-row { display: flex; gap: 6px; margin-top: 5px; }
+    .slot-chip {
+      flex: 1; text-align: center; padding: 7px 4px; border-radius: 10px;
+      border: 1.5px solid var(--border); font-size: 11px; font-weight: 700; cursor: pointer; background: #f8fafc;
+    }
+    .slot-chip.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary-dark); }
+
+    .rate-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 9px; margin-bottom: 8px; }
+    .rate-row { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; border-bottom: 1px dashed #e2e8f0; }
+    .rate-row:last-child { border-bottom: none; }
+    .otp-box {
+      background: #fef3c7; border: 1.5px dashed #d97706; border-radius: 10px;
+      padding: 6px 10px; margin-top: 7px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .warranty-cert { border: 2px solid #059669; border-radius: 16px; padding: 16px; background: #ecfdf5; text-align: center; }
+
+    .toast {
+      position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+      background: var(--dark); color: #fff; padding: 9px 14px; border-radius: 12px;
+      font-size: 12px; font-weight: 700; z-index: 120; max-width: 90%; text-align: center;
+    }
+    .hidden { display: none !important; }
+    .meta { font-size: 11.5px; color: #475569; line-height: 1.45; }
+
+    @media print {
+      body { background: #fff !important; }
+      .phone-shell, .bottom-nav, .toast { display: none !important; }
+      #warrantyModal { position: static !important; display: block !important; background: #fff !important; padding: 0 !important; }
+      #warrantyModal .modal-box { max-width: 100% !important; max-height: none !important; box-shadow: none !important; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="phone-shell">
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- TAB 1: HOME -->
+  <div id="view-home">
+    <div class="hero">
+      <div class="topbar">
+        <div class="brand-wrap" onclick="onLogoTap()" title="3x Tap for Staff Access">
+          <div class="brand-logo">🛠️</div>
+          <div>
+            <span class="brand-name" id="hdrBrand">KaamWala</span>
+            <span class="brand-tag" id="tSubTag">12+ Verified Home Skills</span>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button class="pill-btn" onclick="toggleLang()" id="langBtn">اردو</button>
+          <button class="pill-btn" onclick="onCityTap()" id="hdrCityBtn">📍 Lahore</button>
+          <button class="icon-btn" id="hdrSettingsBtn" onclick="openProtected('settings')" title="Staff Settings">⚙️</button>
+        </div>
+      </div>
+
+      <div class="hero-title" id="tHeroTitle">Har Hunar aur Kaam ke liye Verified Ustad — 45 Min mein!</div>
+      <div class="hero-stats">
+        <span class="hero-stat">★ 4.9 Avg Rating</span>
+        <span class="hero-stat">🛠️ 12+ Hunar</span>
+        <span class="hero-stat">🛡️ 7-Day Warranty</span>
+      </div>
+
+      <div class="search-box">
+        <span>🤖</span>
+        <input type="text" id="searchInput" placeholder="Search: 'solar', 'AC E1', 'salon', 'door lock', 'bike'..." oninput="onSmartSearch()" />
+      </div>
+    </div>
+
+    <div id="aiFaultBox" class="ai-box hidden"></div>
+
+    <div class="reminder-bar">
+      <div style="font-size:11px; color:#92400e;">
+        <strong id="tRemTitle">🔄 90-Day AC & Solar Check Due!</strong><br>
+        <span id="tRemDesc">15% OFF par seasonal service book karein</span>
+      </div>
+      <button onclick="openBookingSheet('solar')" class="btn btn-warn btn-sm" style="width:auto; border:1px solid #f59e0b;" id="tRemBtn">Book Solar</button>
+    </div>
+
+    <div class="promo-strip">
+      <div>
+        <div style="font-size:12px; font-weight:800;" id="tPromoTitle">Pehle Order par Rs. 200 OFF! 🎉</div>
+        <div style="font-size:10.5px; opacity:0.9;">
+          <span id="tCreditPrefix">Referral Credit:</span> <strong id="custCreditLbl">Rs. 0</strong>
+        </div>
+      </div>
+      <div class="promo-code" onclick="copyCode('FIRST200')">FIRST200</div>
+    </div>
+
+    <div class="cat-row" id="catRow">
+      <div class="cat-chip active" data-cat="all" onclick="setCat('all')" id="catAll">✨ All (12)</div>
+      <div class="cat-chip" data-cat="repair" onclick="setCat('repair')" id="catRepair">🔧 Repairs</div>
+      <div class="cat-chip" data-cat="build" onclick="setCat('build')" id="catBuild">☀️ Solar & Wood</div>
+      <div class="cat-chip" data-cat="female" onclick="setCat('female')" id="catFemale">👩 Salon & Care</div>
+      <div class="cat-chip" data-cat="auto" onclick="setCat('auto')" id="catAuto">🚗 Auto & Errands</div>
+      <div class="cat-chip" id="femaleFilterChip" onclick="toggleFemaleMode()">🛡️ Family-Safe Only</div>
+    </div>
+
+    <div class="section">
+      <div class="sec-head">
+        <div class="sec-title" id="tSecServices">Services & Hunar</div>
+        <div class="sec-link" onclick="openBookingSheet('ac')" id="tQuickBook">Quick Book →</div>
+      </div>
+      <div class="services-grid" id="servicesGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="dual-grid">
+        <div class="action-tile" style="background:linear-gradient(135deg,#1e3a8a,#2563eb);" onclick="openBigJobModal()">
+          <div style="font-size:20px;">🔨</div>
+          <div>
+            <div style="font-size:12.5px; font-weight:800;" id="tBigJobTitle">Post Big Job (Bids)</div>
+            <div style="font-size:10px; opacity:0.88;" id="tBigJobDesc">Solar, Paint, Wood — 3 quotes payein</div>
+          </div>
+        </div>
+        <div class="action-tile" style="background:linear-gradient(135deg,#0f172a,#334155);" onclick="openB2BModal()">
+          <div style="font-size:20px;">🏢</div>
+          <div>
+            <div style="font-size:12.5px; font-weight:800;" id="tB2bTitle">B2B Office / Shop</div>
+            <div style="font-size:10px; opacity:0.88;" id="tB2bDesc">Clinics, Cafes & Societies contracts</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-head">
+        <div class="sec-title" id="tSecPlans">Monthly Care Plans 💎</div>
+        <div class="sec-link">Save 35%</div>
+      </div>
+      <div class="h-scroll" id="plansRow"></div>
+    </div>
+
+    <div class="section">
+      <div class="card" style="background:linear-gradient(135deg,#ecfdf5,#fff); border-color:#a7f3d0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+          <div>
+            <div style="font-size:13px; font-weight:800; color:#065f46;" id="tRefTitle">🎁 Refer & Earn Rs. 200</div>
+            <div class="meta" style="font-size:11px;" id="tRefDesc">Doston ko invite karein, dono ko Rs. 200 credit milega!</div>
+          </div>
+          <button onclick="copyCode('REF200')" class="btn btn-primary btn-sm" style="width:auto;">Share</button>
+        </div>
+        <button id="demoRefBtn" onclick="simulateReferralBonus()" class="btn btn-outline btn-sm" style="margin-top:8px;">+ Test Friend Joined (+Rs. 200 Credit)</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-head">
+        <div class="sec-title" id="tSecPros">Top Hunarmand Pros</div>
+        <div class="sec-link" id="proCountLbl">Verified</div>
+      </div>
+      <div class="h-scroll" id="prosRow"></div>
+    </div>
+  </div>
+
+  <!-- TAB 2: MY ORDERS -->
+  <div id="view-orders" class="hidden">
+    <div class="hero" style="padding-bottom:14px;">
+      <div class="topbar" style="margin-bottom:4px;">
+        <div class="brand-name" id="tOrdersHdr">📦 Meri Bookings</div>
+        <button class="pill-btn" onclick="switchView('home')">+ New Order</button>
+      </div>
+      <div class="hero-stats" style="margin-bottom:0;">
+        <span class="hero-stat" id="tOrdersSub">Live Radar, In-App Chat, Custom Bids & Warranty Cards</span>
+      </div>
+    </div>
+    <div class="section">
+      <div id="activePlansList"></div>
+      <div id="customerBigJobsList"></div>
+      <div id="customerOrdersList"></div>
+    </div>
+  </div>
+
+  <!-- TAB 3: WORKER PARTNER APP -->
+  <div id="view-worker" class="hidden">
+    <div class="hero" style="padding-bottom:14px;">
+      <div class="topbar" style="margin-bottom:4px;">
+        <div class="brand-name" id="tWorkerHdr">👷 Partner Pro</div>
+        <div style="display:flex; gap:5px;">
+          <button id="onlineToggleBtn" class="pill-btn" onclick="toggleWorkerOnline()">🟢 Online</button>
+          <button class="pill-btn" onclick="lockStaff()" title="Lock Staff">🔒</button>
+        </div>
+      </div>
+      <div class="hero-stats" style="margin-bottom:0;">
+        <span class="hero-stat">Lead Fee: Rs. <span id="wLeadFeeLbl">50</span></span>
+        <span class="hero-stat">Strikes: <span id="wStrikesLbl">0/3</span></span>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="wallet-hero">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+          <img id="activeWorkerAvatar" src="" onerror="imgErr(this)"
+               style="width:42px; height:42px; border-radius:50%; object-fit:cover; border:2px solid #34d399;" />
+          <div style="flex:1;">
+            <select id="activeWorkerSelect" onchange="changeActiveWorker(this.value)"
+                    style="padding:4px 8px; font-size:12px; font-weight:800; background:#1e293b; color:#fff; border-color:#334155; margin-bottom:3px;"></select>
+            <div style="font-size:10.5px; color:#94a3b8;" id="wStatusText">CNIC Verified ✅</div>
+          </div>
+          <button onclick="playRingtone()" class="pill-btn">🔔 Test</button>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+          <div>
+            <div style="font-size:10.5px; color:#cbd5e1;">Prepaid Lead Wallet</div>
+            <div class="wallet-bal" id="workerWalletVal">Rs. 1,000</div>
+          </div>
+          <button onclick="openTopUpModal()" class="btn btn-primary btn-sm" style="width:auto;">+ Recharge</button>
+        </div>
+      </div>
+
+      <div class="subtabs">
+        <button class="subtab active" onclick="switchWorkerSub('jobs', this)">📋 Jobs</button>
+        <button class="subtab" onclick="switchWorkerSub('bids', this)">🔨 Big Bids</button>
+        <button class="subtab" onclick="switchWorkerSub('hisab', this)">📊 Hisab & Tools</button>
+      </div>
+
+      <div id="wsub-jobs">
+        <div id="workerAlertBanner"></div>
+        <div id="workerJobsList"></div>
+      </div>
+
+      <div id="wsub-bids" class="hidden">
+        <div class="sec-title" style="margin-bottom:8px;">Bade Kaam (Apni Qeemat Lagayein)</div>
+        <div id="workerBigJobsList"></div>
+      </div>
+
+      <div id="wsub-hisab" class="hidden">
+        <div class="card">
+          <div class="sec-title" style="margin-bottom:8px;">📊 Worker Earnings Ledger</div>
+          <div id="workerLedgerBox"></div>
+        </div>
+        <div class="card" style="background:#f0fdf4; border-color:#bbf7d0;">
+          <div class="sec-title" style="margin-bottom:4px;">🧰 Tool Micro-Financing (Asaan Qist)</div>
+          <div class="meta" style="margin-bottom:8px;">Rozana qist wallet se kat kar naye tools lein:</div>
+          <div id="toolLoanOptions"></div>
+          <div id="workerLoanStatus" style="margin-top:8px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 4: ADMIN COMMAND -->
+  <div id="view-admin" class="hidden">
+    <div class="hero" style="padding-bottom:14px;">
+      <div class="topbar" style="margin-bottom:4px;">
+        <div class="brand-name" id="tAdmHdr">📊 Admin Command</div>
+        <div style="display:flex; gap:5px;">
+          <button class="pill-btn" onclick="openSettings()">⚙️ Settings</button>
+          <button class="pill-btn" onclick="lockStaff()">🔒 Lock</button>
+        </div>
+      </div>
+      <div class="hero-stats" style="margin-bottom:0;">
+        <span class="hero-stat">Heatmap, Workers, B2B & Approvals</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-val" id="admRev">Rs. 0</div><div class="kpi-lbl">App Revenue</div></div>
+        <div class="kpi-card"><div class="kpi-val" id="admGmv">Rs. 0</div><div class="kpi-lbl">Total Order GMV</div></div>
+        <div class="kpi-card"><div class="kpi-val" id="admOrders">0</div><div class="kpi-lbl">Orders + Bids</div></div>
+        <div class="kpi-card"><div class="kpi-val" id="admB2B">0</div><div class="kpi-lbl">B2B Contracts</div></div>
+      </div>
+
+      <div class="card">
+        <div class="sec-title" style="margin-bottom:8px;">🔥 Area Demand Heatmap (<span id="admCityLbl">Lahore</span>)</div>
+        <div id="adminHeatmap"></div>
+      </div>
+
+      <div class="card">
+        <div class="sec-title" style="margin-bottom:4px;">🛡️ Quality Control</div>
+        <div class="meta" id="admStrikeInfo">Strikes: 0/3</div>
+        <button onclick="resetStrikes()" class="btn btn-outline btn-sm" style="margin-top:7px;">Clear Strikes / Unsuspend</button>
+      </div>
+
+      <div class="sec-title" style="margin-bottom:7px;">💳 Wallet Recharge Requests (TID)</div>
+      <div id="adminTopUps"></div>
+
+      <div class="sec-title" style="margin:10px 0 7px;">🧰 Tool Loans & Qist Recovery</div>
+      <div id="adminToolLoans"></div>
+
+      <div class="sec-title" style="margin:10px 0 7px;">🏢 B2B Corporate Leads</div>
+      <div id="adminB2BList"></div>
+
+      <div class="card" style="margin-top:10px;">
+        <div class="sec-title" style="margin-bottom:4px;">➕ Naya Hunarmand Add Karein</div>
+        <form id="addWorkerForm">
+          <label>Worker Name</label><input type="text" id="newWName" placeholder="Ustad Hanif Carpenter" required />
+          <label>Skill Category</label><input type="text" id="newWSkill" placeholder="Carpenter / Solar / Salon" required />
+          <label>Phone & CNIC</label><input type="text" id="newWInfo" placeholder="0302-1122334 | CNIC: 9921" required />
+          <label style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+            <input type="checkbox" id="newWFemale" style="width:18px; height:18px;" /> Female / Family-Safe Verified Pro
+          </label>
+          <button type="submit" class="btn btn-dark btn-sm" style="margin-top:10px;">Verify & Add Worker</button>
+        </form>
+      </div>
+
+      <div class="sec-title" style="margin:10px 0 7px;">👷 Registered Workers (<span id="admWorkerCount">0</span>)</div>
+      <div id="adminWorkersList"></div>
+
+      <div class="sec-title" style="margin:10px 0 7px;">📋 All Bookings Log</div>
+      <div id="adminBookingsList"></div>
+
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button onclick="clearDemoOrders()" class="btn btn-warn btn-sm" style="flex:1;">🧹 Fresh Start (Clear Sample Orders)</button>
+        <button onclick="resetAllDemo()" class="btn btn-danger btn-sm" style="flex:1;">Reset All Demo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<div class="bottom-nav">
+  <button class="nav-item active" onclick="switchView('home', this)"><span class="nav-ico">🏠</span><span id="navHome">Home</span></button>
+  <button class="nav-item" onclick="switchView('orders', this)"><span class="nav-ico">📦</span><span id="navOrders">Orders</span></button>
+  <button class="nav-item" id="navWorkerTab" onclick="openProtected('worker', this)"><span class="nav-ico">👷</span><span id="navWorker">Worker</span></button>
+  <button class="nav-item" id="navAdminTab" onclick="openProtected('admin', this)"><span class="nav-ico">📊</span><span id="navAdmin">Admin</span></button>
+</div>
+
+<!-- STAFF PIN MODAL -->
+<div id="pinModal" class="overlay center hidden" onclick="if(event.target===this) closeModal('pinModal')">
+  <div class="modal-box" style="text-align:center;">
+    <div style="font-size:32px;">🔐</div>
+    <h3 style="margin:6px 0 4px;">Staff / Admin Access</h3>
+    <p class="meta" id="pinHintText">4-Digit Staff PIN enter karein (Default: <strong>1234</strong>)</p>
+    <form id="pinForm" style="margin-top:10px;">
+      <input type="password" id="pinInput" inputmode="numeric" maxlength="6" placeholder="••••"
+             style="text-align:center; font-size:20px; letter-spacing:6px; font-weight:800;" required />
+      <button type="submit" class="btn btn-primary" style="margin-top:10px;">Unlock</button>
+    </form>
+  </div>
+</div>
+
+<!-- BOOKING SHEET -->
+<div id="bookingSheet" class="overlay hidden" onclick="if(event.target===this) closeBookingSheet()">
+  <div class="sheet">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:9px;">
+      <div style="font-size:15.5px; font-weight:900;" id="sheetSvcTitle">Book Service</div>
+      <button onclick="closeBookingSheet()" style="border:none; background:#f1f5f9; width:28px; height:28px; border-radius:50%; font-weight:800; cursor:pointer;">✕</button>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center; background:#f8fafc; padding:9px; border-radius:12px; border:1px solid var(--border); margin-bottom:8px;">
+      <img id="sheetSvcImg" src="" onerror="imgErr(this)" style="width:56px; height:48px; border-radius:9px; object-fit:cover;" />
+      <div>
+        <div style="font-size:12px; font-weight:800; color:var(--primary);" id="sheetSvcPrice">Visit Fee: Rs. 400</div>
+        <div class="meta" style="font-size:10.5px;">7-Day Warranty • Transparent Rate Card</div>
+      </div>
+    </div>
+    <div class="rate-box">
+      <div style="font-size:11px; font-weight:800; margin-bottom:4px;">📋 Standard Rate Card</div>
+      <div id="sheetRateList"></div>
+    </div>
+    <form id="bookForm">
+      <label>Time Slot</label>
+      <div class="slot-row" id="slotRow">
+        <div class="slot-chip active" onclick="pickSlot(this, 'Standard (45 Min)')">⏱ 45 Mins</div>
+        <div class="slot-chip" onclick="pickSlot(this, 'Aaj Shaam 4-7 PM')">🌆 Shaam</div>
+        <div class="slot-chip" onclick="pickSlot(this, 'Kal Subah 10 AM')">☀️ Kal Subah</div>
+      </div>
+      <div class="card" style="background:#fffbeb; border-color:#fde68a; padding:8px 10px; margin-top:9px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:11.5px; font-weight:800; color:#92400e;">⚡ Express 20-Min Emergency (+Rs. 200)</div>
+        <input type="checkbox" id="bExpress" onchange="updateSummary()" style="width:18px; height:18px;" />
+      </div>
+      <div class="card" style="background:#fdf2f8; border-color:#fbcfe8; padding:8px 10px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:11.5px; font-weight:800; color:#9d174d;">👩 Female / Family-Safe Pro Only</div>
+        <input type="checkbox" id="bFemaleSafe" style="width:18px; height:18px;" />
+      </div>
+      <label>Society / Area</label>
+      <select id="bArea">
+        <option>Bahria Town</option>
+        <option>DHA Phase 1-8</option>
+        <option>Gulberg / Model Town</option>
+        <option>Johar Town / Wapda Town</option>
+        <option>Cantt / City Center</option>
+      </select>
+      <label>Aapka Naam</label><input type="text" id="bName" placeholder="Hamza Khan" required />
+      <label>WhatsApp Number</label><input type="tel" id="bPhone" placeholder="0300-1234567" required />
+      <label>Address + Live GPS</label>
+      <div style="display:flex; gap:6px;">
+        <input type="text" id="bAddress" placeholder="House #14, Street 3, Block C" required />
+        <button type="button" onclick="captureGPS()" class="btn btn-outline btn-sm" style="width:auto;">📍 GPS</button>
+      </div>
+      <div class="meta" id="gpsStatus" style="font-size:10.5px; color:var(--primary); margin-top:2px;"></div>
+
+      <label>📷 Problem Photo & 🎤 Voice Note</label>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <input type="file" id="bPhotoInput" accept="image/*" capture="environment" onchange="handlePhotoUpload(this,'booking')" style="font-size:11px; padding:6px;" />
+        <button type="button" id="voiceBtn" onclick="toggleVoiceRec()" class="btn btn-dark btn-sm" style="width:auto;">🎤 Record</button>
+      </div>
+      <div id="mediaPreview" style="margin-top:5px;"></div>
+
+      <label>Masla / Tafseel</label><textarea id="bNote" placeholder="Masla likhein..."></textarea>
+      <label>Promo Code (FIRST200 / REF200)</label>
+      <div style="display:flex; gap:6px;">
+        <input type="text" id="bPromo" placeholder="FIRST200" oninput="onPromoInput()" />
+        <button type="button" onclick="applyPromo()" class="btn btn-dark btn-sm" style="width:auto;">Apply</button>
+      </div>
+      <div class="card" style="background:#f0fdf4; border-color:#bbf7d0; margin-top:9px; padding:9px 11px;">
+        <div style="display:flex; justify-content:space-between; font-size:11px;"><span>Visit Fee:</span><strong id="sumBase">Rs. 400</strong></div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#b45309;"><span>Express Fee:</span><strong id="sumExp">Rs. 0</strong></div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#059669;"><span>Promo Code Discount:</span><strong id="sumPromo">- Rs. 0</strong></div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#0284c7;"><span>Referral Wallet Used:</span><strong id="sumCredit">- Rs. 0</strong></div>
+        <hr style="border:none; border-top:1px dashed #86efac; margin:4px 0;" />
+        <div style="display:flex; justify-content:space-between; font-size:13.5px; font-weight:900;"><span>Payable:</span><span id="sumTotal" style="color:#065f46;">Rs. 400</span></div>
+      </div>
+      <button type="submit" class="btn btn-primary">Confirm Booking ✅</button>
+    </form>
+  </div>
+</div>
+
+<!-- OTHER MODALS -->
+<div id="bigJobModal" class="overlay center hidden" onclick="if(event.target===this) closeModal('bigJobModal')">
+  <div class="modal-box">
+    <h3 style="margin-bottom:4px;">🔨 Big Job Post Karein</h3>
+    <p class="meta" style="margin-bottom:8px;">Solar, Paint, Woodwork — workers ki bids payein:</p>
+    <form id="bigJobForm">
+      <label>Category</label>
+      <select id="bjCat">
+        <option>Solar Panel Setup (5kW/10kW)</option>
+        <option>Home Painting & Seepage</option>
+        <option>Carpenter Kitchen Cabinets</option>
+        <option>Full House Plumbing/Wiring</option>
+      </select>
+      <label>Area</label><input type="text" id="bjArea" value="Bahria Town" required />
+      <label>Detail</label><textarea id="bjDesc" placeholder="Kaam ki detail likhein..." required></textarea>
+      <label>Budget (PKR)</label><input type="number" id="bjBudget" placeholder="25000" required />
+      <button type="submit" class="btn btn-primary" style="margin-top:10px;">Post for Worker Bids</button>
+    </form>
+  </div>
+</div>
+
+<div id="b2bModal" class="overlay center hidden" onclick="if(event.target===this) closeModal('b2bModal')">
+  <div class="modal-box">
+    <h3 style="margin-bottom:4px;">🏢 B2B Office & Shop Contract</h3>
+    <form id="b2bForm">
+      <label>Business Name</label><input type="text" id="b2bBiz" placeholder="Al-Shifa Dental Clinic" required />
+      <label>Phone</label><input type="tel" id="b2bPhone" placeholder="0300-1234567" required />
+      <label>Monthly Plan</label>
+      <select id="b2bPkg">
+        <option>Office Care (5 ACs + Weekly Electric/Plumb) — Rs. 8,000/mo</option>
+        <option>Restaurant Deep Clean + Exhaust — Rs. 12,000/mo</option>
+        <option>Society Multi-Tech Retainer — Rs. 25,000/mo</option>
+      </select>
+      <button type="submit" class="btn btn-dark" style="margin-top:10px;">Request Corporate Quote</button>
+    </form>
+  </div>
+</div>
+
+<div id="chatModal" class="overlay center hidden" onclick="if(event.target===this) closeModal('chatModal')">
+  <div class="modal-box">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <h4 id="chatTitle">💬 Live Safe Chat</h4>
+      <button onclick="closeModal('chatModal')" style="border:none; background:#f1f5f9; width:26px; height:26px; border-radius:50%; cursor:pointer;">✕</button>
+    </div>
+    <div class="chat-box" id="chatMessages"></div>
+    <div id="chatQuickReplies" style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:8px;"></div>
+    <form id="chatForm" style="display:flex; gap:6px;">
+      <input type="text" id="chatInput" placeholder="Message likhein..." required />
+      <button type="submit" class="btn btn-primary btn-sm" style="width:auto;">Send</button>
+    </form>
+  </div>
+</div>
+
+<div id="proofModal" class="overlay center hidden" onclick="if(event.target===this) closeModal('proofModal')">
+  <div class="modal-box">
+    <h3 id="proofTitle" style="margin-bottom:6px;">📸 Work Proof</h3>
+    <input type="file" id="proofFileInput" accept="image/*" capture="environment" onchange="handlePhotoUpload(this,'proof')" />
+    <div id="proofPreview" style="margin-top:8px;"></div>
+    <button onclick="saveProofPhoto()" class="btn btn-primary btn-sm" style="margin-top:10px;">Save Photo ✅</button>
+  </div>
+</div>
+
+<div id="partsModal" class="overlay center hidden" onclick="if(event.target===this) closeModal('partsModal')">
+  <div class="modal-box">
+    <h3 style="margin-bottom:6px;">🔩 Hardware Partner Parts</h3>
+    <div id="partsListContainer"></div>
+    <button onclick="closeModal('partsModal')" class="btn btn-outline btn-sm" style="margin-top:8px;">Close</button>
+  </div>
+</div>
+
+<div id="warrantyModal" class="overlay center hidden" onclick="if(event.target===this) closeModal('warrantyModal')">
+  <div class="modal-box">
+    <div class="warranty-cert" id="warrantyContent"></div>
+    <div class="no-print" style="display:flex; gap:8px; margin-top:10px;">
+      <button onclick="window.print()" class="btn btn-primary btn-sm">🖨️ Print / Save PDF</button>
+      <button onclick="closeModal('warrantyModal')" class="btn btn-outline btn-sm">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="successModal" class="overlay center hidden" onclick="if(event.target===this) closeModal('successModal')">
+  <div class="modal-box" style="text-align:center;">
+    <div style="font-size:36px;">🎉</div>
+    <h3 style="margin:4px 0;" id="sucTitle">Confirm Ho Gaya!</h3>
+    <p class="meta" id="sucDesc" style="margin-bottom:8px;"></p>
+    <div class="otp-box" id="sucOtpBox" style="justify-content:center; gap:8px; margin-bottom:10px;">
+      <span style="font-size:11.5px; font-weight:700;">🔐 Safety Start OTP:</span>
+      <strong id="sucOtp" style="font-size:17px; letter-spacing:2px; color:#92400e;">0000</strong>
+    </div>
+    <a id="sucWaLink" href="#" target="_blank" class="btn btn-primary">📲 Admin ko WhatsApp Bhejein</a>
+    <div id="sucPostActions">
+      <button onclick="closeModal('successModal'); switchView('orders')" class="btn btn-dark" style="margin-top:7px;">📦 Live Tracking Dekhein</button>
+    </div>
+  </div>
+</div>
+
+<div id="topUpModal" class="overlay center hidden" onclick="if(event.target===this) closeModal('topUpModal')">
+  <div class="modal-box">
+    <h3 style="margin-bottom:6px;">💳 Wallet Recharge</h3>
+    <p class="meta" style="margin-bottom:8px;">Account par bhej kar TID likhein:<br><strong id="payAccountDisplay" style="color:var(--primary);"></strong></p>
+    <form id="topUpForm">
+      <label>Method</label><select id="tMethod"><option>JazzCash</option><option>Easypaisa</option><option>Raast</option></select>
+      <label>Amount</label><select id="tAmount"><option value="500">Rs. 500</option><option value="1000">Rs. 1,000</option></select>
+      <label>TID</label><input type="text" id="tTid" placeholder="08472910384" required />
+      <button type="submit" class="btn btn-primary" style="margin-top:10px;">Submit</button>
+    </form>
+  </div>
+</div>
+
+<div id="settingsModal" class="overlay center hidden" onclick="if(event.target===this) closeModal('settingsModal')">
+  <div class="modal-box">
+    <h3 style="margin-bottom:6px;">⚙️ App Customize Karein</h3>
+    <form id="settingsForm">
+      <label>Brand Name</label><input type="text" id="setBrand" required />
+      <label>City</label><input type="text" id="setCity" required />
+      <label>Admin WhatsApp (03xx ya 923xx)</label><input type="text" id="setWa" placeholder="03001234567" required />
+      <label>JazzCash / Easypaisa Account</label><input type="text" id="setPayAcc" required />
+      <label>Lead Fee (PKR)</label><input type="number" id="setLeadFee" required />
+      <label>Staff / Admin PIN (4 Digits)</label><input type="text" id="setPin" maxlength="6" required />
+      <div class="card" style="background:#f0fdf4; border-color:#bbf7d0; padding:9px; margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:11.5px; font-weight:700; color:#065f46;">🚀 Live Customer Mode<br><span style="font-size:10px; font-weight:500;">(Staff tabs, sample orders & demo buttons hide karein)</span></div>
+        <input type="checkbox" id="setLiveMode" style="width:20px; height:20px;" />
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:10px;">Save Settings</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  const STORE_KEY = "kaamwala_clean_v10";
+  const FALLBACK_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='240'%3E%3Crect width='100%25' height='100%25' fill='%23065f46'/%3E%3Ctext x='50%25' y='52%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='sans-serif' font-size='22'%3EKaamWala%3C/text%3E%3C/svg%3E";
+
+  function imgErr(el) {
+    el.onerror = null;
+    el.src = FALLBACK_SVG;
+  }
+
+  const SERVICES = [
+    { id: "ac", cat: "repair", name: "AC & Cooling", nameUr: "اے سی اور کولنگ", desc: "Gas refill, master service, PCB", fee: 500, eta: "35 min", badge: "🔥 Popular", femaleSafe: false, img: "https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=800&q=80", rates: [["Master Jet Service", "Rs. 2,000"], ["Gas Refill", "Rs. 3,800"], ["Capacitor Change", "Rs. 900"]] },
+    { id: "elec", cat: "repair", name: "Electrician & UPS", nameUr: "الیکٹریشن اور یو پی ایس", desc: "UPS wiring, breaker, fans", fee: 400, eta: "30 min", badge: "⚡ Fastest", femaleSafe: false, img: "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=800&q=80", rates: [["UPS / Inverter Setup", "Rs. 1,200"], ["Ceiling Fan Install", "Rs. 600"], ["Breaker Fix", "Rs. 500"]] },
+    { id: "plumb", cat: "repair", name: "Plumber & Geyser", nameUr: "پلمبر اور گیزر", desc: "Leakage, motor, geyser, taps", fee: 400, eta: "40 min", badge: "✅ Guaranteed", femaleSafe: false, img: "https://images.unsplash.com/photo-1580401410158-1f0b0a406762?auto=format&fit=crop&w=800&q=80", rates: [["Tap Replace", "Rs. 500"], ["Water Motor Repair", "Rs. 1,000"], ["Geyser Service", "Rs. 1,200"]] },
+    { id: "solar", cat: "build", name: "Solar & Inverter", nameUr: "سولر اور انورٹر", desc: "Panel wash, hybrid setup, earthing", fee: 600, eta: "45 min", badge: "☀️ High Demand", femaleSafe: false, img: "https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&w=800&q=80", rates: [["10-Panel Pressure Wash", "Rs. 1,500"], ["Inverter Fault Check", "Rs. 1,000"], ["Net-Metering Check", "Rs. 1,200"]] },
+    { id: "carp", cat: "build", name: "Carpenter & Locks", nameUr: "کارپینٹر اور تالے", desc: "Door locks, cabinets, bed repair", fee: 450, eta: "45 min", badge: "🪚 Skilled", femaleSafe: false, img: "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80", rates: [["Door Lock Replace", "Rs. 600"], ["Cabinet Hinge Fix", "Rs. 500"], ["Bed Frame Fix", "Rs. 1,200"]] },
+    { id: "paint", cat: "build", name: "Painter & Seepage", nameUr: "پینٹر اور سیم کا علاج", desc: "Room paint, seepage & polish", fee: 500, eta: "60 min", badge: "🎨 Pro Finish", femaleSafe: false, img: "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=800&q=80", rates: [["1 Wall Touch-up", "Rs. 1,800"], ["Seepage Waterproofing", "Rs. 3,500"], ["Door Deco Polish", "Rs. 2,200"]] },
+    { id: "salon", cat: "female", name: "Female Salon at Home", nameUr: "خواتین سیلون گھر پر", desc: "Facial, waxing, hair & makeup", fee: 500, eta: "45 min", badge: "💄 Female Pro", femaleSafe: true, img: "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80", rates: [["Glow Facial + Cleansing", "Rs. 2,200"], ["Full Arms/Legs Wax", "Rs. 1,800"], ["Party Hair & Makeup", "Rs. 4,500"]] },
+    { id: "clean", cat: "female", name: "Female Home Care", nameUr: "گھریلو صفائی (فیمیل)", desc: "Female cleaner, sofa & kitchen", fee: 700, eta: "50 min", badge: "👩 Family-Safe", femaleSafe: true, img: "https://images.unsplash.com/photo-1585421514284-efb74c2b69ba?auto=format&fit=crop&w=800&q=80", rates: [["Female Deep Clean (3 hrs)", "Rs. 1,500"], ["5-Seater Sofa Clean", "Rs. 1,800"], ["Kitchen Degreasing", "Rs. 2,000"]] },
+    { id: "tutor", cat: "female", name: "Home Tutor & Quran", nameUr: "ہوم ٹیوٹر اور قرآن", desc: "Science, English & Nazra Quran", fee: 400, eta: "Demo", badge: "📚 Verified", femaleSafe: true, img: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=800&q=80", rates: [["Trial Assessment Class", "Rs. 400"], ["Monthly Quran (Female/Male)", "Rs. 5,000"], ["O-Level/Matric Monthly", "Rs. 8,000"]] },
+    { id: "car", cat: "auto", name: "Doorstep Car Wash", nameUr: "کار واش گھر پر", desc: "Foam wash, vacuum & polish", fee: 600, eta: "45 min", badge: "✨ Trending", femaleSafe: true, img: "https://images.unsplash.com/photo-1601362840469-51e4d8d58785?auto=format&fit=crop&w=800&q=80", rates: [["Sedan Exterior + Vacuum", "Rs. 600"], ["SUV Detailing", "Rs. 1,200"], ["Wax Polish", "Rs. 300"]] },
+    { id: "mech", cat: "auto", name: "Mobile Mechanic", nameUr: "موبائل مکینک (بائیک/کار)", desc: "Bike tuning, battery jump, puncture", fee: 400, eta: "25 min", badge: "🏍️ Roadside", femaleSafe: false, img: "https://images.unsplash.com/photo-1615906655593-ad0386982a0f?auto=format&fit=crop&w=800&q=80", rates: [["70cc/125cc Bike Tuning", "Rs. 600"], ["Car Battery Jump-Start", "Rs. 700"], ["Doorstep Puncture Fix", "Rs. 400"]] },
+    { id: "errand", cat: "auto", name: "Pick & Drop / Errand", nameUr: "پک اینڈ ڈراپ / سامان", desc: "Bazar se samaan & documents", fee: 300, eta: "25 min", badge: "📦 Instant", femaleSafe: true, img: "https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=800&q=80", rates: [["Within 3 km Errand", "Rs. 300"], ["Grocery / Pharmacy Run", "Rs. 350"], ["Document Drop", "Rs. 400"]] }
+  ];
+
+  const PLANS = [
+    { id: "p1", tag: "BEST SELLER", title: "Monthly Car Care", desc: "4 Foam Washes / Month", price: 1800 },
+    { id: "p2", tag: "VIP HOME", title: "Home Care Club", desc: "Free Visits + 10% Off", price: 499 },
+    { id: "p3", tag: "SOLAR & AC", title: "Summer Care Duo", desc: "2 AC + 2 Solar Washes", price: 3600 }
+  ];
+
+  const HARDWARE_PARTS = [
+    { name: "AC Capacitor (35uF)", price: 750 },
+    { name: "Brass Tap / Mixer", price: 650 },
+    { name: "32A MCB Breaker", price: 850 },
+    { name: "Smart Door Lock Cylinder", price: 1400 },
+    { name: "AC Gas Top-Up (1kg)", price: 2400 }
+  ];
+
+  const TOOL_ITEMS = [
+    { name: "Bosch Hammer Drill", price: 4500, daily: 100 },
+    { name: "High-Pressure Solar/AC Washer", price: 8000, daily: 150 },
+    { name: "Digital Clamp Meter", price: 2500, daily: 80 }
+  ];
+
+  const AI_RULES = [
+    { keys: ["e1","e4","f0","ac","cool","gas","ice","split"], svc: "ac", title: "AC Sensor / Gas / Capacitor Issue", est: "Rs. 900 – Rs. 3,800", tip: "AC band kar dein aur stabilizer check karein." },
+    { keys: ["solar","panel","inverter","battery","watt"], svc: "solar", title: "Solar Panel Cleaning / Inverter Fault", est: "Rs. 1,000 – Rs. 2,500", tip: "Dust se 25% bijli kam banti hai — pressure wash karwayein." },
+    { keys: ["door","lock","wood","cabinet","hinge","carpenter","darwaza"], svc: "carp", title: "Carpenter / Door Lock Repair", est: "Rs. 500 – Rs. 1,500", tip: "Master carpenter locks & hinges sath le kar aayega." },
+    { keys: ["paint","seepage","damp","wall","deewar","rang"], svc: "paint", title: "Wall Paint / Seepage Waterproofing", est: "Rs. 1,800 – Rs. 4,500", tip: "Dampness check karke chemical coat lagaya jayega." },
+    { keys: ["salon","facial","wax","hair","makeup","beauty"], svc: "salon", title: "Female Salon at Home (Verified)", est: "Rs. 1,800 – Rs. 4,500", tip: "100% Female Beautician sealed kit ke saath aayegi." },
+    { keys: ["bike","puncture","start","battery","mechanic","tyre"], svc: "mech", title: "Roadside / Doorstep Mechanic", est: "Rs. 400 – Rs. 1,000", tip: "25 min mein mechanic jump-start & tools le kar pahunch jayega." },
+    { keys: ["tutor","quran","study","class","math","english"], svc: "tutor", title: "Verified Home Tutor / Quran Teacher", est: "Rs. 400 Trial / Rs. 5k+ mo", tip: "Male & Female verified teachers available hain." },
+    { keys: ["trip","breaker","ups","spark","wire","fan","bijli"], svc: "elec", title: "Short Circuit / Breaker / UPS Load", est: "Rs. 500 – Rs. 1,500", tip: "Main breaker off rakhein taake appliance safe rahe." },
+    { keys: ["leak","tap","pipe","motor","geyser","pani","sink"], svc: "plumb", title: "Pipe Leakage / Motor / Geyser", est: "Rs. 500 – Rs. 1,800", tip: "Main water valve band kar dein." },
+    { keys: ["sofa","clean","safai","maid","kitchen"], svc: "clean", title: "Deep Cleaning / Female Care", est: "Rs. 1,500 – Rs. 2,500", tip: "Female-Safe verified pro available hai." },
+    { keys: ["car","wash","gaari","polish"], svc: "car", title: "Doorstep Foam Wash & Vacuum", est: "Rs. 600 – Rs. 1,200", tip: "45 min mein doorstep wash team pahunch jayegi." }
+  ];
+
+  const I18N = {
+    en: {
+      subTag: "12+ Verified Home Skills", heroTitle: "Har Hunar aur Kaam ke liye Verified Ustad — 45 Min mein!",
+      searchPh: "Search: 'solar', 'AC E1', 'salon', 'door lock', 'bike'...",
+      remTitle: "🔄 90-Day AC & Solar Check Due!", remDesc: "15% OFF par seasonal service book karein", remBtn: "Book Solar",
+      promoTitle: "Pehle Order par Rs. 200 OFF! 🎉", creditPrefix: "Referral Credit:",
+      catAll: "✨ All (12)", catRepair: "🔧 Repairs", catBuild: "☀️ Solar & Wood", catFemale: "👩 Salon & Care", catAuto: "🚗 Auto & Errands", catSafe: "🛡️ Family-Safe Only",
+      secServices: "Services & Hunar", quickBook: "Quick Book →",
+      bigJobTitle: "Post Big Job (Bids)", bigJobDesc: "Solar, Paint, Wood — 3 quotes payein",
+      b2bTitle: "B2B Office / Shop", b2bDesc: "Clinics, Cafes & Societies contracts",
+      secPlans: "Monthly Care Plans 💎", refTitle: "🎁 Refer & Earn Rs. 200", refDesc: "Doston ko invite karein, dono ko Rs. 200 credit milega!",
+      secPros: "Top Hunarmand Pros", ordersHdr: "📦 Meri Bookings", ordersSub: "Live Radar, In-App Chat, Custom Bids & Warranty Cards",
+      workerHdr: "👷 Partner Pro", admHdr: "📊 Admin Command",
+      navHome: "Home", navOrders: "Orders", navWorker: "Worker", navAdmin: "Admin", langBtn: "اردو"
+    },
+    ur: {
+      subTag: "12+ تصدیق شدہ گھریلو ہنر", heroTitle: "ہر ہنر اور کام کے لیے تصدیق شدہ کاریگر — 45 منٹ میں!",
+      searchPh: "تلاش کریں: سولر، اے سی، سیلون، پلمبر، بائیک...",
+      remTitle: "🔄 اے سی اور سولر سروس کا وقت ہو گیا!", remDesc: "15% ڈسکاؤنٹ پر سیزنل سروس بُک کریں", remBtn: "بُک کریں",
+      promoTitle: "پہلے آرڈر پر 200 روپے کی بچت! 🎉", creditPrefix: "ریفرل کریڈٹ:",
+      catAll: "✨ تمام (12)", catRepair: "🔧 مرمت", catBuild: "☀️ سولر و لکڑی", catFemale: "👩 خواتین کیئر", catAuto: "🚗 آٹو و ڈیلیوری", catSafe: "🛡️ فیملی سیف",
+      secServices: "سروسز اور ہنر", quickBook: "فوری بکنگ ←",
+      bigJobTitle: "بڑا کام پوسٹ کریں", bigJobDesc: "پینٹ، سولر، وڈ ورک — ریٹس منگوائیں",
+      b2bTitle: "آفس / دکان معاہدہ", b2bDesc: "کلینک، کیفے اور سوسائٹی پیکجز",
+      secPlans: "ماہانہ کیئر پیکجز 💎", refTitle: "🎁 دوستوں کو مدعو کریں — 200 روپے پائیں", refDesc: "کوڈ شیئر کریں اور دونوں کو 200 روپے کریڈٹ ملے گا!",
+      secPros: "بہترین ہنرمند کاریگر", ordersHdr: "📦 میری بکنگز", ordersSub: "لائیو ٹریکنگ، چیٹ، بڈنگ اور ڈیجیٹل وارنٹی کارڈ",
+      workerHdr: "👷 پارٹنر ایپ", admHdr: "📊 ایڈمن پینل",
+      navHome: "ہوم", navOrders: "آرڈرز", navWorker: "ورکر ایپ", navAdmin: "ایڈمن", langBtn: "EN"
+    }
+  };
+
+  const DEFAULT_DATA = {
+    lang: "en", femaleMode: false, activeCat: "all", usedFirstPromo: false,
+    activeWorkerName: "Ustad Bilal Ahmed",
+    settings: {
+      brand: "KaamWala", city: "Lahore", whatsapp: "923001234567",
+      payAccount: "JazzCash / Easypaisa: 0300-1234567", leadFee: 50,
+      staffPin: "1234", liveCustomerMode: false
+    },
+    customerCredit: 0, wallet: 1000, revenue: 50, workerOnline: true, workerStrikes: 0,
+    activePlans: [],
+    workers: [
+      { name: "Ustad Bilal Ahmed", skill: "AC & Electrical", rating: "4.9", jobs: "340+", femaleSafe: false, info: "0300-9911223 | CNIC: 4412", avatar: "https://images.unsplash.com/photo-1603415526983-d7c7e6d62c98?auto=format&fit=crop&w=300&q=80" },
+      { name: "Zainab Salon Pro", skill: "Female Beauty & Care", rating: "5.0", jobs: "280+", femaleSafe: true, info: "0301-2233445 | CNIC: 3190", avatar: "https://images.unsplash.com/photo-1535295972055-1c762f4483e5?auto=format&fit=crop&w=300&q=80" },
+      { name: "Engr. Usman Solar", skill: "Solar & Inverters", rating: "4.9", jobs: "165+", femaleSafe: false, info: "0322-7788990 | CNIC: 5521", avatar: "https://images.unsplash.com/photo-1517676109075-9a94d44145d1?auto=format&fit=crop&w=300&q=80" },
+      { name: "Ustad Rashid Ali", skill: "Plumber & Geyser", rating: "4.8", jobs: "215+", femaleSafe: false, info: "0312-8877665 | CNIC: 7731", avatar: "https://images.unsplash.com/photo-1595152772835-219674b2a8a6?auto=format&fit=crop&w=300&q=80" }
+    ],
+    bookings: [
+      {
+        id: "KW-502", isDemo: true, service: "Solar & Inverter", fee: 600, expressFee: 0, promoDisc: 0, creditUsed: 0, total: 600, leadFeePaid: 0,
+        express: false, femaleSafe: false, slot: "Standard (45 Min)", area: "Bahria Town", name: "Saad Tariq",
+        phone: "0321-5550192", address: "H

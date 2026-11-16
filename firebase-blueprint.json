@@ -1,0 +1,516 @@
+{
+  "entities": {
+    "UserWorkspace": {
+      "title": "UserWorkspace",
+      "description": "Authenticated user profile, app preferences, worker wallet, and command metrics.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the workspace owner." },
+        "displayName": { "type": "string", "description": "Google account display name." },
+        "email": { "type": "string", "description": "Google account email address." },
+        "lang": { "type": "string", "enum": ["en", "ur"], "description": "UI language preference." },
+        "brand": { "type": "string", "description": "Brand display name." },
+        "city": { "type": "string", "description": "Active service city." },
+        "whatsapp": { "type": "string", "description": "Admin WhatsApp dispatch number." },
+        "payAccount": { "type": "string", "description": "JazzCash / Easypaisa recharge account details." },
+        "leadFee": { "type": "integer", "description": "Lead fee in PKR deducted per accepted job." },
+        "staffPin": { "type": "string", "description": "4-6 digit PIN gating staff tabs." },
+        "liveCustomerMode": { "type": "boolean", "description": "Whether demo data and staff tabs are hidden." },
+        "customerCredit": { "type": "integer", "description": "Referral credit wallet balance in PKR." },
+        "walletBalance": { "type": "integer", "description": "Worker prepaid lead wallet balance in PKR." },
+        "appRevenue": { "type": "integer", "description": "Accumulated platform revenue in PKR." },
+        "workerOnline": { "type": "boolean", "description": "Worker dispatch online status." },
+        "workerStrikes": { "type": "integer", "description": "Worker quality strike count (0-3)." },
+        "usedFirstPromo": { "type": "boolean", "description": "Whether FIRST200 promo has been redeemed." },
+        "activeWorkerName": { "type": "string", "description": "Currently selected Partner Pro name." },
+        "isSeeded": { "type": "boolean", "description": "Whether initial sample records have been seeded." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp when created." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp when last updated." }
+      },
+      "required": [
+        "userId", "displayName", "lang", "brand", "city", "whatsapp", "payAccount",
+        "leadFee", "staffPin", "liveCustomerMode", "customerCredit", "walletBalance",
+        "appRevenue", "workerOnline", "workerStrikes", "usedFirstPromo", "activeWorkerName",
+        "isSeeded", "createdAt", "updatedAt"
+      ]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Service booking order with pricing, GPS coordinates, OTP, parts, and work proof.",
+      "type": "object",
+      "properties": {
+        "isDemo": { "type": "boolean" },
+        "serviceId": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "fee": { "type": "integer" },
+        "expressFee": { "type": "integer" },
+        "promoDisc": { "type": "integer" },
+        "creditUsed": { "type": "integer" },
+        "partsTotal": { "type": "integer" },
+        "addedPartsSummary": { "type": "string" },
+        "total": { "type": "integer" },
+        "leadFeePaid": { "type": "integer" },
+        "express": { "type": "boolean" },
+        "femaleSafe": { "type": "boolean" },
+        "slot": { "type": "string" },
+        "area": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "address": { "type": "string" },
+        "gpsCoords": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "workerLat": { "type": "number" },
+        "workerLng": { "type": "number" },
+        "note": { "type": "string" },
+        "photoUri": { "type": "string" },
+        "voiceNotePath": { "type": "string" },
+        "proofPhotoUri": { "type": "string" },
+        "otp": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "ACCEPTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] },
+        "assignedWorkerName": { "type": "string" },
+        "rating": { "type": "integer" },
+        "reviewNote": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "isDemo", "serviceId", "serviceName", "fee", "expressFee", "promoDisc",
+        "creditUsed", "partsTotal", "addedPartsSummary", "total", "leadFeePaid",
+        "express", "femaleSafe", "slot", "area", "customerName", "customerPhone",
+        "address", "gpsCoords", "latitude", "longitude", "workerLat", "workerLng",
+        "note", "photoUri", "voiceNotePath", "proofPhotoUri", "otp", "status",
+        "assignedWorkerName", "rating", "reviewNote", "createdAt", "updatedAt"
+      ]
+    },
+    "Worker": {
+      "title": "Worker",
+      "description": "Verified Hunarmand Pro technician profile.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "skill": { "type": "string" },
+        "rating": { "type": "string" },
+        "jobsCount": { "type": "string" },
+        "femaleSafe": { "type": "boolean" },
+        "info": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "skill", "rating", "jobsCount", "femaleSafe", "info", "avatarUrl", "isDemo", "createdAt", "updatedAt"]
+    },
+    "BigJob": {
+      "title": "BigJob",
+      "description": "Custom multi-quote large project posting.",
+      "type": "object",
+      "properties": {
+        "category": { "type": "string" },
+        "area": { "type": "string" },
+        "description": { "type": "string" },
+        "budget": { "type": "integer" },
+        "status": { "type": "string", "enum": ["OPEN", "AWARDED"] },
+        "acceptedBidId": { "type": "string" },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["category", "area", "description", "budget", "status", "acceptedBidId", "isDemo", "createdAt", "updatedAt"]
+    },
+    "Bid": {
+      "title": "Bid",
+      "description": "Worker price quote submitted for a BigJob.",
+      "type": "object",
+      "properties": {
+        "bigJobId": { "type": "string" },
+        "workerName": { "type": "string" },
+        "amount": { "type": "integer" },
+        "note": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["bigJobId", "workerName", "amount", "note", "createdAt", "updatedAt"]
+    },
+    "B2bLead": {
+      "title": "B2bLead",
+      "description": "Commercial/B2B retainer lead.",
+      "type": "object",
+      "properties": {
+        "businessName": { "type": "string" },
+        "phone": { "type": "string" },
+        "packageName": { "type": "string" },
+        "status": { "type": "string", "enum": ["NEW", "ACTIVE"] },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["businessName", "phone", "packageName", "status", "isDemo", "createdAt", "updatedAt"]
+    },
+    "TopUpRequest": {
+      "title": "TopUpRequest",
+      "description": "Worker prepaid lead wallet recharge request.",
+      "type": "object",
+      "properties": {
+        "workerName": { "type": "string" },
+        "method": { "type": "string" },
+        "amount": { "type": "integer" },
+        "tid": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workerName", "method", "amount", "tid", "status", "createdAt", "updatedAt"]
+    },
+    "ToolLoan": {
+      "title": "ToolLoan",
+      "description": "Worker Asaan Qist tool installment financing record.",
+      "type": "object",
+      "properties": {
+        "workerName": { "type": "string" },
+        "toolName": { "type": "string" },
+        "totalPrice": { "type": "integer" },
+        "dailyQist": { "type": "integer" },
+        "paidAmount": { "type": "integer" },
+        "status": { "type": "string", "enum": ["PENDING", "ACTIVE", "PAID_OFF"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workerName", "toolName", "totalPrice", "dailyQist", "paidAmount", "status", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Order-scoped safe chat message between customer and worker.",
+      "type": "object",
+      "properties": {
+        "bookingId": { "type": "string" },
+        "senderRole": { "type": "string", "enum": ["CUSTOMER", "WORKER"] },
+        "senderName": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["bookingId", "senderRole", "senderName", "text", "createdAt", "updatedAt"]
+    },
+    "ActivePlan": {
+      "title": "ActivePlan",
+      "description": "Active monthly home/car/solar care subscription.",
+      "type": "object",
+      "properties": {
+        "planId": { "type": "string" },
+        "title": { "type": "string" },
+        "desc": { "type": "string" },
+        "price": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["planId", "title", "desc", "price", "createdAt", "updatedAt"]
+    },
+    "MarketplaceProfile": {
+      "title": "MarketplaceProfile",
+      "description": "Registered customer, karegar worker, or admin profile with KYC verification and wallet.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "role": { "type": "string", "enum": ["CUSTOMER", "WORKER", "ADMIN"] },
+        "fullName": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "city": { "type": "string" },
+        "area": { "type": "string" },
+        "address": { "type": "string" },
+        "skill": { "type": "string" },
+        "experienceYears": { "type": "integer" },
+        "cnic": { "type": "string" },
+        "payoutAccount": { "type": "string" },
+        "femaleSafe": { "type": "boolean" },
+        "verificationStatus": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] },
+        "isOnline": { "type": "boolean" },
+        "walletBalance": { "type": "integer" },
+        "totalEarnings": { "type": "integer" },
+        "strikes": { "type": "integer" },
+        "rating": { "type": "number" },
+        "jobsCompleted": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId", "role", "fullName", "phone", "email", "city", "area", "address",
+        "skill", "experienceYears", "cnic", "payoutAccount", "femaleSafe",
+        "verificationStatus", "isOnline", "walletBalance", "totalEarnings",
+        "strikes", "rating", "jobsCompleted", "createdAt", "updatedAt"
+      ]
+    },
+    "MarketplaceOrder": {
+      "title": "MarketplaceOrder",
+      "description": "Shared cross-account service order between customer, karegar worker, and admin.",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string" },
+        "workerId": { "type": "string" },
+        "city": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "fee": { "type": "integer" },
+        "expressFee": { "type": "integer" },
+        "promoDisc": { "type": "integer" },
+        "creditUsed": { "type": "integer" },
+        "partsTotal": { "type": "integer" },
+        "addedPartsSummary": { "type": "string" },
+        "total": { "type": "integer" },
+        "leadFeePaid": { "type": "integer" },
+        "commissionAmount": { "type": "integer" },
+        "express": { "type": "boolean" },
+        "femaleSafe": { "type": "boolean" },
+        "slot": { "type": "string" },
+        "area": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "address": { "type": "string" },
+        "gpsCoords": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "workerLat": { "type": "number" },
+        "workerLng": { "type": "number" },
+        "note": { "type": "string" },
+        "photoUri": { "type": "string" },
+        "voiceNotePath": { "type": "string" },
+        "proofPhotoUri": { "type": "string" },
+        "otp": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "ACCEPTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] },
+        "assignedWorkerName": { "type": "string" },
+        "assignedWorkerPhone": { "type": "string" },
+        "paymentMethod": { "type": "string", "enum": ["CASH", "JAZZCASH", "EASYPAISA", "RAAST"] },
+        "paymentStatus": { "type": "string", "enum": ["UNPAID", "PAID_PENDING_VERIFY", "SETTLED"] },
+        "paymentTid": { "type": "string" },
+        "rating": { "type": "integer" },
+        "reviewNote": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "customerId", "workerId", "city", "serviceId", "serviceName", "fee",
+        "expressFee", "promoDisc", "creditUsed", "partsTotal", "addedPartsSummary",
+        "total", "leadFeePaid", "commissionAmount", "express", "femaleSafe", "slot",
+        "area", "customerName", "customerPhone", "address", "gpsCoords", "latitude",
+        "longitude", "workerLat", "workerLng", "note", "photoUri", "voiceNotePath",
+        "proofPhotoUri", "otp", "status", "assignedWorkerName", "assignedWorkerPhone",
+        "paymentMethod", "paymentStatus", "paymentTid", "rating", "reviewNote",
+        "createdAt", "updatedAt"
+      ]
+    },
+    "MarketplaceChatMessage": {
+      "title": "MarketplaceChatMessage",
+      "description": "Shared real-time chat message between customer and assigned worker for an order.",
+      "type": "object",
+      "properties": {
+        "bookingId": { "type": "string" },
+        "customerId": { "type": "string" },
+        "workerId": { "type": "string" },
+        "senderUid": { "type": "string" },
+        "senderRole": { "type": "string", "enum": ["CUSTOMER", "WORKER", "ADMIN"] },
+        "senderName": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["bookingId", "customerId", "workerId", "senderUid", "senderRole", "senderName", "text", "createdAt", "updatedAt"]
+    },
+    "MarketplaceTopUp": {
+      "title": "MarketplaceTopUp",
+      "description": "Cross-account worker wallet recharge request verified by admin.",
+      "type": "object",
+      "properties": {
+        "workerUid": { "type": "string" },
+        "workerName": { "type": "string" },
+        "method": { "type": "string" },
+        "amount": { "type": "integer" },
+        "tid": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workerUid", "workerName", "method", "amount", "tid", "status", "createdAt", "updatedAt"]
+    },
+    "MarketplaceToolLoan": {
+      "title": "MarketplaceToolLoan",
+      "description": "Cross-account tool financing loan request.",
+      "type": "object",
+      "properties": {
+        "workerUid": { "type": "string" },
+        "workerName": { "type": "string" },
+        "toolName": { "type": "string" },
+        "totalPrice": { "type": "integer" },
+        "dailyQist": { "type": "integer" },
+        "paidAmount": { "type": "integer" },
+        "status": { "type": "string", "enum": ["PENDING", "ACTIVE", "PAID_OFF"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workerUid", "workerName", "toolName", "totalPrice", "dailyQist", "paidAmount", "status", "createdAt", "updatedAt"]
+    },
+    "MarketplaceBigJob": {
+      "title": "MarketplaceBigJob",
+      "description": "Shared multi-quote Big Job open to verified workers.",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string" },
+        "category": { "type": "string" },
+        "area": { "type": "string" },
+        "description": { "type": "string" },
+        "budget": { "type": "integer" },
+        "status": { "type": "string", "enum": ["OPEN", "AWARDED"] },
+        "acceptedBidId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerId", "category", "area", "description", "budget", "status", "acceptedBidId", "createdAt", "updatedAt"]
+    },
+    "MarketplaceBid": {
+      "title": "MarketplaceBid",
+      "description": "Verified worker quote placed on a shared Big Job.",
+      "type": "object",
+      "properties": {
+        "bigJobId": { "type": "string" },
+        "customerId": { "type": "string" },
+        "workerUid": { "type": "string" },
+        "workerName": { "type": "string" },
+        "amount": { "type": "integer" },
+        "note": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["bigJobId", "customerId", "workerUid", "workerName", "amount", "note", "createdAt", "updatedAt"]
+    },
+    "MarketplaceB2b": {
+      "title": "MarketplaceB2b",
+      "description": "Shared commercial/B2B contract lead visible to admin.",
+      "type": "object",
+      "properties": {
+        "submittedByUid": { "type": "string" },
+        "businessName": { "type": "string" },
+        "phone": { "type": "string" },
+        "packageName": { "type": "string" },
+        "status": { "type": "string", "enum": ["NEW", "ACTIVE"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["submittedByUid", "businessName", "phone", "packageName", "status", "createdAt", "updatedAt"]
+    },
+    "MarketplaceConfig": {
+      "title": "MarketplaceConfig",
+      "description": "Global marketplace payment account, admin WhatsApp, lead fee, and commission settings.",
+      "type": "object",
+      "properties": {
+        "brand": { "type": "string" },
+        "city": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "payAccount": { "type": "string" },
+        "leadFee": { "type": "integer" },
+        "commissionPercent": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["brand", "city", "whatsapp", "payAccount", "leadFee", "commissionPercent", "updatedAt"]
+    },
+    "AdminLedgerEntry": {
+      "title": "AdminLedgerEntry",
+      "description": "Persistent itemized platform revenue and withdrawal ledger entry.",
+      "type": "object",
+      "properties": {
+        "entryType": { "type": "string", "enum": ["LEAD_FEE", "COMMISSION", "CARE_PLAN", "TOOL_QIST", "WITHDRAWAL"] },
+        "amount": { "type": "integer" },
+        "orderId": { "type": "string" },
+        "actorName": { "type": "string" },
+        "note": { "type": "string" },
+        "payoutMethod": { "type": "string" },
+        "payoutAccount": { "type": "string" },
+        "recordedByUid": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["entryType", "amount", "orderId", "actorName", "note", "payoutMethod", "payoutAccount", "recordedByUid", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserWorkspace" },
+      "description": "Authenticated user workspace profile and wallet/settings state."
+    },
+    "/users/{userId}/bookings/{bookingId}": {
+      "schema": { "$ref": "#/entities/Booking" },
+      "description": "Bookings owned by the authenticated user."
+    },
+    "/users/{userId}/workers/{workerId}": {
+      "schema": { "$ref": "#/entities/Worker" },
+      "description": "Verified worker roster in user's marketplace workspace."
+    },
+    "/users/{userId}/bigJobs/{jobId}": {
+      "schema": { "$ref": "#/entities/BigJob" },
+      "description": "Custom quote Big Jobs owned by the user."
+    },
+    "/users/{userId}/bids/{bidId}": {
+      "schema": { "$ref": "#/entities/Bid" },
+      "description": "Worker bids linked to BigJobs."
+    },
+    "/users/{userId}/b2bLeads/{leadId}": {
+      "schema": { "$ref": "#/entities/B2bLead" },
+      "description": "Corporate B2B contract leads."
+    },
+    "/users/{userId}/topUpRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/TopUpRequest" },
+      "description": "Worker wallet recharge requests."
+    },
+    "/users/{userId}/toolLoans/{loanId}": {
+      "schema": { "$ref": "#/entities/ToolLoan" },
+      "description": "Tool financing Asaan Qist loans."
+    },
+    "/users/{userId}/chatMessages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Order-scoped chat messages."
+    },
+    "/users/{userId}/activePlans/{planId}": {
+      "schema": { "$ref": "#/entities/ActivePlan" },
+      "description": "Activated monthly care plans."
+    },
+    "/marketplaceProfiles/{profileId}": {
+      "schema": { "$ref": "#/entities/MarketplaceProfile" },
+      "description": "Registered customer, karegar worker, and admin marketplace profiles."
+    },
+    "/marketplaceOrders/{orderId}": {
+      "schema": { "$ref": "#/entities/MarketplaceOrder" },
+      "description": "Shared cross-account service bookings picked by verified workers."
+    },
+    "/marketplaceOrders/{orderId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/MarketplaceChatMessage" },
+      "description": "Shared real-time chat between customer and assigned worker for an order."
+    },
+    "/marketplaceTopUps/{requestId}": {
+      "schema": { "$ref": "#/entities/MarketplaceTopUp" },
+      "description": "Shared worker prepaid wallet top-up requests awaiting admin approval."
+    },
+    "/marketplaceToolLoans/{loanId}": {
+      "schema": { "$ref": "#/entities/MarketplaceToolLoan" },
+      "description": "Shared worker tool qist financing applications."
+    },
+    "/marketplaceBigJobs/{jobId}": {
+      "schema": { "$ref": "#/entities/MarketplaceBigJob" },
+      "description": "Shared open project requests for worker bids."
+    },
+    "/marketplaceBigJobs/{jobId}/bids/{bidId}": {
+      "schema": { "$ref": "#/entities/MarketplaceBid" },
+      "description": "Bids submitted by approved workers on a shared Big Job."
+    },
+    "/marketplaceB2b/{leadId}": {
+      "schema": { "$ref": "#/entities/MarketplaceB2b" },
+      "description": "Shared corporate B2B inquiries visible to admin."
+    },
+    "/marketplaceConfig/{configId}": {
+      "schema": { "$ref": "#/entities/MarketplaceConfig" },
+      "description": "Global marketplace payment account and commission settings."
+    },
+    "/adminLedger/{entryId}": {
+      "schema": { "$ref": "#/entities/AdminLedgerEntry" },
+      "description": "Persistent itemized admin earnings and payout withdrawal ledger."
+    }
+  }
+}

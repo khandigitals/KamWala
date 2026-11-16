@@ -1,0 +1,1035 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default Deny Everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HARDENED PRIMITIVES ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        ('email' in request.auth.token &&
+         'email_verified' in request.auth.token &&
+         request.auth.token.email == 'mnc.sahjavi@gmail.com' &&
+         request.auth.token.email_verified == true)
+      );
+    }
+
+    function isApprovedWorker(uid) {
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/marketplaceProfiles/$(uid)) &&
+             get(/databases/$(database)/documents/marketplaceProfiles/$(uid)).data.role == 'WORKER' &&
+             get(/databases/$(database)/documents/marketplaceProfiles/$(uid)).data.verificationStatus == 'APPROVED';
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestampsOnCreate(data) {
+      return data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidTimestampsOnUpdate(data) {
+      return data.createdAt == existing().createdAt &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // --- VALIDATION HELPERS ---
+    function isValidUserWorkspace(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 160)) &&
+             data.lang in ['en', 'ur'] &&
+             data.brand is string && data.brand.size() >= 1 && data.brand.size() <= 60 &&
+             data.city is string && data.city.size() >= 1 && data.city.size() <= 60 &&
+             data.whatsapp is string && data.whatsapp.size() <= 30 &&
+             data.payAccount is string && data.payAccount.size() <= 120 &&
+             data.leadFee is int && data.leadFee >= 0 && data.leadFee <= 100000 &&
+             data.staffPin is string && data.staffPin.size() >= 4 && data.staffPin.size() <= 8 &&
+             data.liveCustomerMode is bool &&
+             data.customerCredit is int && data.customerCredit >= 0 && data.customerCredit <= 1000000 &&
+             data.walletBalance is int && data.walletBalance >= 0 && data.walletBalance <= 10000000 &&
+             data.appRevenue is int && data.appRevenue >= 0 && data.appRevenue <= 100000000 &&
+             data.workerOnline is bool &&
+             data.workerStrikes is int && data.workerStrikes >= 0 && data.workerStrikes <= 3 &&
+             data.usedFirstPromo is bool &&
+             data.activeWorkerName is string && data.activeWorkerName.size() <= 100 &&
+             data.isSeeded is bool;
+    }
+
+    function isValidBooking(data) {
+      return data.isDemo is bool &&
+             data.serviceId is string && data.serviceId.size() >= 1 && data.serviceId.size() <= 40 &&
+             data.serviceName is string && data.serviceName.size() >= 1 && data.serviceName.size() <= 100 &&
+             data.fee is int && data.fee >= 0 && data.fee <= 1000000 &&
+             data.expressFee is int && data.expressFee >= 0 && data.expressFee <= 100000 &&
+             data.promoDisc is int && data.promoDisc >= 0 && data.promoDisc <= 100000 &&
+             data.creditUsed is int && data.creditUsed >= 0 && data.creditUsed <= 100000 &&
+             data.partsTotal is int && data.partsTotal >= 0 && data.partsTotal <= 1000000 &&
+             data.addedPartsSummary is string && data.addedPartsSummary.size() <= 500 &&
+             data.total is int && data.total >= 0 && data.total <= 2000000 &&
+             data.leadFeePaid is int && data.leadFeePaid >= 0 && data.leadFeePaid <= 100000 &&
+             data.express is bool &&
+             data.femaleSafe is bool &&
+             data.slot is string && data.slot.size() >= 1 && data.slot.size() <= 60 &&
+             data.area is string && data.area.size() >= 1 && data.area.size() <= 100 &&
+             data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 100 &&
+             data.customerPhone is string && data.customerPhone.size() >= 1 && data.customerPhone.size() <= 40 &&
+             data.address is string && data.address.size() >= 1 && data.address.size() <= 300 &&
+             data.gpsCoords is string && data.gpsCoords.size() <= 80 &&
+             data.latitude is number && data.latitude >= -90 && data.latitude <= 90 &&
+             data.longitude is number && data.longitude >= -180 && data.longitude <= 180 &&
+             data.workerLat is number && data.workerLat >= -90 && data.workerLat <= 90 &&
+             data.workerLng is number && data.workerLng >= -180 && data.workerLng <= 180 &&
+             data.note is string && data.note.size() <= 1000 &&
+             data.photoUri is string && data.photoUri.size() <= 1000 &&
+             data.voiceNotePath is string && data.voiceNotePath.size() <= 500 &&
+             data.proofPhotoUri is string && data.proofPhotoUri.size() <= 1000 &&
+             data.otp is string && data.otp.size() >= 4 && data.otp.size() <= 10 &&
+             data.status in ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] &&
+             data.assignedWorkerName is string && data.assignedWorkerName.size() <= 100 &&
+             data.rating is int && data.rating >= 0 && data.rating <= 5 &&
+             data.reviewNote is string && data.reviewNote.size() <= 500;
+    }
+
+    function isValidMarketplaceOrderMutable(data) {
+      return data.workerId is string && data.workerId.size() <= 128 &&
+             data.partsTotal is int && data.partsTotal >= 0 && data.partsTotal <= 1000000 &&
+             data.addedPartsSummary is string && data.addedPartsSummary.size() <= 500 &&
+             data.total is int && data.total >= 0 && data.total <= 2000000 &&
+             data.leadFeePaid is int && data.leadFeePaid >= 0 && data.leadFeePaid <= 100000 &&
+             data.commissionAmount is int && data.commissionAmount >= 0 && data.commissionAmount <= 1000000 &&
+             data.slot is string && data.slot.size() >= 1 && data.slot.size() <= 60 &&
+             data.area is string && data.area.size() >= 1 && data.area.size() <= 100 &&
+             data.address is string && data.address.size() >= 1 && data.address.size() <= 300 &&
+             data.gpsCoords is string && data.gpsCoords.size() <= 80 &&
+             data.latitude is number && data.latitude >= -90 && data.latitude <= 90 &&
+             data.longitude is number && data.longitude >= -180 && data.longitude <= 180 &&
+             data.workerLat is number && data.workerLat >= -90 && data.workerLat <= 90 &&
+             data.workerLng is number && data.workerLng >= -180 && data.workerLng <= 180 &&
+             data.proofPhotoUri is string && data.proofPhotoUri.size() <= 1000 &&
+             data.status in ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] &&
+             data.assignedWorkerName is string && data.assignedWorkerName.size() <= 100 &&
+             data.assignedWorkerPhone is string && data.assignedWorkerPhone.size() <= 40 &&
+             data.paymentStatus in ['UNPAID', 'PAID_PENDING_VERIFY', 'SETTLED'] &&
+             data.paymentTid is string && data.paymentTid.size() <= 80 &&
+             data.rating is int && data.rating >= 0 && data.rating <= 5 &&
+             data.reviewNote is string && data.reviewNote.size() <= 500;
+    }
+
+    function isValidMarketplaceOrder(data) {
+      return data.customerId is string && isValidId(data.customerId) &&
+             data.city is string && data.city.size() >= 1 && data.city.size() <= 60 &&
+             data.serviceId is string && data.serviceId.size() >= 1 && data.serviceId.size() <= 40 &&
+             data.serviceName is string && data.serviceName.size() >= 1 && data.serviceName.size() <= 100 &&
+             data.fee is int && data.fee >= 0 && data.fee <= 1000000 &&
+             data.expressFee is int && data.expressFee >= 0 && data.expressFee <= 100000 &&
+             data.promoDisc is int && data.promoDisc >= 0 && data.promoDisc <= 100000 &&
+             data.creditUsed is int && data.creditUsed >= 0 && data.creditUsed <= 100000 &&
+             data.express is bool &&
+             data.femaleSafe is bool &&
+             data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 100 &&
+             data.customerPhone is string && data.customerPhone.size() >= 1 && data.customerPhone.size() <= 40 &&
+             data.note is string && data.note.size() <= 1000 &&
+             data.photoUri is string && data.photoUri.size() <= 1000 &&
+             data.voiceNotePath is string && data.voiceNotePath.size() <= 500 &&
+             data.otp is string && data.otp.size() >= 4 && data.otp.size() <= 10 &&
+             data.paymentMethod in ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAAST'] &&
+             isValidMarketplaceOrderMutable(data);
+    }
+
+    function isValidMarketplaceProfile(data, profileId) {
+      return data.userId is string && data.userId == profileId && isValidId(data.userId) &&
+             data.role in ['CUSTOMER', 'WORKER', 'ADMIN'] &&
+             data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 100 &&
+             data.phone is string && data.phone.size() >= 7 && data.phone.size() <= 30 &&
+             data.email is string && data.email.size() <= 160 &&
+             data.city is string && data.city.size() >= 1 && data.city.size() <= 60 &&
+             data.area is string && data.area.size() <= 100 &&
+             data.address is string && data.address.size() <= 300 &&
+             data.skill is string && data.skill.size() <= 120 &&
+             data.experienceYears is int && data.experienceYears >= 0 && data.experienceYears <= 60 &&
+             data.cnic is string && data.cnic.size() <= 25 &&
+             data.payoutAccount is string && data.payoutAccount.size() <= 120 &&
+             data.femaleSafe is bool &&
+             data.verificationStatus in ['PENDING', 'APPROVED', 'REJECTED'] &&
+             data.isOnline is bool &&
+             data.walletBalance is int && data.walletBalance >= 0 && data.walletBalance <= 10000000 &&
+             data.totalEarnings is int && data.totalEarnings >= 0 && data.totalEarnings <= 100000000 &&
+             data.strikes is int && data.strikes >= 0 && data.strikes <= 3 &&
+             data.rating is number && data.rating >= 0 && data.rating <= 5 &&
+             data.jobsCompleted is int && data.jobsCompleted >= 0 && data.jobsCompleted <= 1000000;
+    }
+
+    function isValidMarketplaceChatMessage(data) {
+      return data.bookingId is string && isValidId(data.bookingId) &&
+             data.customerId is string && data.customerId.size() <= 128 &&
+             data.workerId is string && data.workerId.size() <= 128 &&
+             data.senderUid is string && isValidId(data.senderUid) &&
+             data.senderRole in ['CUSTOMER', 'WORKER', 'ADMIN'] &&
+             data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 100 &&
+             data.text is string && data.text.size() >= 1 && data.text.size() <= 1000;
+    }
+
+    function isValidOrderChatParticipants(orderId, data) {
+      let order = get(/databases/$(database)/documents/marketplaceOrders/$(orderId)).data;
+      return data.customerId == order.customerId &&
+             data.workerId == order.workerId &&
+             (request.auth.uid == order.customerId || request.auth.uid == order.workerId || isAdmin());
+    }
+
+    function isValidWorker(data) {
+      return data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.skill is string && data.skill.size() >= 1 && data.skill.size() <= 120 &&
+             data.rating is string && data.rating.size() <= 10 &&
+             data.jobsCount is string && data.jobsCount.size() <= 20 &&
+             data.femaleSafe is bool &&
+             data.info is string && data.info.size() <= 200 &&
+             data.avatarUrl is string && data.avatarUrl.size() <= 500 &&
+             data.isDemo is bool;
+    }
+
+    function isValidBigJob(data) {
+      return data.category is string && data.category.size() >= 1 && data.category.size() <= 120 &&
+             data.area is string && data.area.size() >= 1 && data.area.size() <= 100 &&
+             data.description is string && data.description.size() >= 1 && data.description.size() <= 1000 &&
+             data.budget is int && data.budget >= 0 && data.budget <= 10000000 &&
+             data.status in ['OPEN', 'AWARDED'] &&
+             data.acceptedBidId is string && data.acceptedBidId.size() <= 128 &&
+             data.isDemo is bool;
+    }
+
+    function isValidMarketplaceBigJob(data) {
+      return data.customerId is string && isValidId(data.customerId) &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 120 &&
+             data.area is string && data.area.size() >= 1 && data.area.size() <= 100 &&
+             data.description is string && data.description.size() >= 1 && data.description.size() <= 1000 &&
+             data.budget is int && data.budget >= 0 && data.budget <= 10000000 &&
+             data.status in ['OPEN', 'AWARDED'] &&
+             data.acceptedBidId is string && data.acceptedBidId.size() <= 128;
+    }
+
+    function isValidBid(data) {
+      return data.bigJobId is string && isValidId(data.bigJobId) &&
+             data.workerName is string && data.workerName.size() >= 1 && data.workerName.size() <= 100 &&
+             data.amount is int && data.amount >= 0 && data.amount <= 10000000 &&
+             data.note is string && data.note.size() <= 500;
+    }
+
+    function isValidMarketplaceBid(data) {
+      return data.bigJobId is string && isValidId(data.bigJobId) &&
+             data.customerId is string && isValidId(data.customerId) &&
+             data.workerUid is string && isValidId(data.workerUid) &&
+             data.workerName is string && data.workerName.size() >= 1 && data.workerName.size() <= 100 &&
+             data.amount is int && data.amount >= 0 && data.amount <= 10000000 &&
+             data.note is string && data.note.size() <= 500;
+    }
+
+    function isValidB2bLead(data) {
+      return data.businessName is string && data.businessName.size() >= 1 && data.businessName.size() <= 120 &&
+             data.phone is string && data.phone.size() >= 1 && data.phone.size() <= 40 &&
+             data.packageName is string && data.packageName.size() >= 1 && data.packageName.size() <= 200 &&
+             data.status in ['NEW', 'ACTIVE'] &&
+             data.isDemo is bool;
+    }
+
+    function isValidMarketplaceB2b(data) {
+      return data.submittedByUid is string && isValidId(data.submittedByUid) &&
+             data.businessName is string && data.businessName.size() >= 1 && data.businessName.size() <= 120 &&
+             data.phone is string && data.phone.size() >= 1 && data.phone.size() <= 40 &&
+             data.packageName is string && data.packageName.size() >= 1 && data.packageName.size() <= 200 &&
+             data.status in ['NEW', 'ACTIVE'];
+    }
+
+    function isValidTopUpRequest(data) {
+      return data.workerName is string && data.workerName.size() >= 1 && data.workerName.size() <= 100 &&
+             data.method is string && data.method.size() >= 1 && data.method.size() <= 40 &&
+             data.amount is int && data.amount > 0 && data.amount <= 1000000 &&
+             data.tid is string && data.tid.size() >= 1 && data.tid.size() <= 80 &&
+             data.status in ['PENDING', 'APPROVED', 'REJECTED'];
+    }
+
+    function isValidMarketplaceTopUp(data) {
+      return data.workerUid is string && isValidId(data.workerUid) &&
+             isValidTopUpRequest(data);
+    }
+
+    function isValidToolLoan(data) {
+      return data.workerName is string && data.workerName.size() >= 1 && data.workerName.size() <= 100 &&
+             data.toolName is string && data.toolName.size() >= 1 && data.toolName.size() <= 120 &&
+             data.totalPrice is int && data.totalPrice > 0 && data.totalPrice <= 1000000 &&
+             data.dailyQist is int && data.dailyQist > 0 && data.dailyQist <= 100000 &&
+             data.paidAmount is int && data.paidAmount >= 0 && data.paidAmount <= data.totalPrice &&
+             data.status in ['PENDING', 'ACTIVE', 'PAID_OFF'];
+    }
+
+    function isValidMarketplaceToolLoan(data) {
+      return data.workerUid is string && isValidId(data.workerUid) &&
+             isValidToolLoan(data);
+    }
+
+    function isValidChatMessage(data) {
+      return data.bookingId is string && isValidId(data.bookingId) &&
+             data.senderRole in ['CUSTOMER', 'WORKER'] &&
+             data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 100 &&
+             data.text is string && data.text.size() >= 1 && data.text.size() <= 1000;
+    }
+
+    function isValidActivePlan(data) {
+      return data.planId is string && data.planId.size() >= 1 && data.planId.size() <= 40 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.desc is string && data.desc.size() <= 300 &&
+             data.price is int && data.price >= 0 && data.price <= 1000000;
+    }
+
+    function isValidMarketplaceConfig(data) {
+      return data.brand is string && data.brand.size() >= 1 && data.brand.size() <= 60 &&
+             data.city is string && data.city.size() >= 1 && data.city.size() <= 60 &&
+             data.whatsapp is string && data.whatsapp.size() <= 30 &&
+             data.payAccount is string && data.payAccount.size() <= 120 &&
+             data.leadFee is int && data.leadFee >= 0 && data.leadFee <= 100000 &&
+             data.commissionPercent is int && data.commissionPercent >= 0 && data.commissionPercent <= 50 &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAdminLedger(data) {
+      return data.entryType in ['LEAD_FEE', 'COMMISSION', 'CARE_PLAN', 'TOOL_QIST', 'WITHDRAWAL'] &&
+             data.amount is int && data.amount > 0 && data.amount <= 100000000 &&
+             data.orderId is string && data.orderId.size() <= 128 &&
+             data.actorName is string && data.actorName.size() <= 120 &&
+             data.note is string && data.note.size() <= 500 &&
+             data.payoutMethod is string && data.payoutMethod.size() <= 60 &&
+             data.payoutAccount is string && data.payoutAccount.size() <= 120 &&
+             data.recordedByUid is string && isValidId(data.recordedByUid);
+    }
+
+    // --- ADMINS COLLECTION ---
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && isValidId(adminId) && (request.auth.uid == adminId || isAdmin());
+      allow list, create, update, delete: if false;
+    }
+
+    // --- SHARED MARKETPLACE PROFILES (Customer, Worker KYC, Admin) ---
+    match /marketplaceProfiles/{profileId} {
+      allow get: if isValidId(profileId) && isSignedIn() && (
+        isOwner(profileId) ||
+        isAdmin() ||
+        (resource != null && existing().role == 'WORKER' && existing().verificationStatus == 'APPROVED')
+      );
+      allow list: if isAdmin() || (
+        isSignedIn() &&
+        resource.data.role == 'WORKER' &&
+        resource.data.verificationStatus == 'APPROVED'
+      );
+
+      allow create: if isValidId(profileId) &&
+                       isOwner(profileId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'role', 'fullName', 'phone', 'email', 'city', 'area', 'address',
+                         'skill', 'experienceYears', 'cnic', 'payoutAccount', 'femaleSafe',
+                         'verificationStatus', 'isOnline', 'walletBalance', 'totalEarnings',
+                         'strikes', 'rating', 'jobsCompleted', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'role', 'fullName', 'phone', 'email', 'city', 'area', 'address',
+                         'skill', 'experienceYears', 'cnic', 'payoutAccount', 'femaleSafe',
+                         'verificationStatus', 'isOnline', 'walletBalance', 'totalEarnings',
+                         'strikes', 'rating', 'jobsCompleted', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidTimestampsOnCreate(incoming()) &&
+                       isValidMarketplaceProfile(incoming(), profileId) &&
+                       (
+                         isAdmin() ||
+                         (
+                           incoming().role in ['CUSTOMER', 'WORKER'] &&
+                           incoming().verificationStatus == (incoming().role == 'CUSTOMER' ? 'APPROVED' : 'PENDING') &&
+                           incoming().walletBalance == 0 &&
+                           incoming().totalEarnings == 0 &&
+                           incoming().strikes == 0 &&
+                           incoming().jobsCompleted == 0
+                         )
+                       );
+
+      allow update: if isValidId(profileId) &&
+                       isSignedIn() &&
+                       isValidMarketplaceProfile(incoming(), existing().userId) &&
+                       isValidTimestampsOnUpdate(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       (
+                         isAdmin() ||
+                         (
+                           isOwner(profileId) &&
+                           incoming().strikes == existing().strikes &&
+                           incoming().totalEarnings == existing().totalEarnings &&
+                           incoming().walletBalance <= existing().walletBalance &&
+                           (
+                             (incoming().role == existing().role && incoming().verificationStatus == existing().verificationStatus) ||
+                             (incoming().role == 'CUSTOMER' && incoming().verificationStatus == 'APPROVED') ||
+                             (incoming().role == 'WORKER' && incoming().verificationStatus == 'PENDING')
+                           ) &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'role', 'verificationStatus', 'fullName', 'phone', 'email',
+                             'city', 'area', 'address', 'skill', 'experienceYears', 'cnic',
+                             'payoutAccount', 'femaleSafe', 'isOnline', 'walletBalance',
+                             'jobsCompleted', 'updatedAt'
+                           ])
+                         )
+                       );
+
+      allow delete: if isValidId(profileId) && isAdmin();
+    }
+
+    // --- SHARED MARKETPLACE ORDERS (Cross-User Customer <-> Worker <-> Admin) ---
+    match /marketplaceOrders/{orderId} {
+      allow get: if isValidId(orderId) && isSignedIn() && (
+        isAdmin() ||
+        (
+          resource != null && (
+            existing().customerId == request.auth.uid ||
+            existing().workerId == request.auth.uid ||
+            existing().status == 'PENDING'
+          )
+        )
+      );
+      allow list: if isAdmin() || (
+        isSignedIn() && (
+          resource.data.customerId == request.auth.uid ||
+          resource.data.workerId == request.auth.uid ||
+          resource.data.status == 'PENDING'
+        )
+      );
+
+      allow create: if isValidId(orderId) &&
+                       isSignedIn() &&
+                       incoming().customerId == request.auth.uid &&
+                       incoming().workerId == '' &&
+                       incoming().status == 'PENDING' &&
+                       incoming().paymentStatus == 'UNPAID' &&
+                       incoming().commissionAmount == 0 &&
+                       incoming().keys().hasAll([
+                         'customerId', 'workerId', 'city', 'serviceId', 'serviceName', 'fee',
+                         'expressFee', 'promoDisc', 'creditUsed', 'partsTotal', 'addedPartsSummary',
+                         'total', 'leadFeePaid', 'commissionAmount', 'express', 'femaleSafe', 'slot',
+                         'area', 'customerName', 'customerPhone', 'address', 'gpsCoords', 'latitude',
+                         'longitude', 'workerLat', 'workerLng', 'note', 'photoUri', 'voiceNotePath',
+                         'proofPhotoUri', 'otp', 'status', 'assignedWorkerName', 'assignedWorkerPhone',
+                         'paymentMethod', 'paymentStatus', 'paymentTid', 'rating', 'reviewNote',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'customerId', 'workerId', 'city', 'serviceId', 'serviceName', 'fee',
+                         'expressFee', 'promoDisc', 'creditUsed', 'partsTotal', 'addedPartsSummary',
+                         'total', 'leadFeePaid', 'commissionAmount', 'express', 'femaleSafe', 'slot',
+                         'area', 'customerName', 'customerPhone', 'address', 'gpsCoords', 'latitude',
+                         'longitude', 'workerLat', 'workerLng', 'note', 'photoUri', 'voiceNotePath',
+                         'proofPhotoUri', 'otp', 'status', 'assignedWorkerName', 'assignedWorkerPhone',
+                         'paymentMethod', 'paymentStatus', 'paymentTid', 'rating', 'reviewNote',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidTimestampsOnCreate(incoming()) &&
+                       isValidMarketplaceOrder(incoming());
+
+      allow update: if isValidId(orderId) &&
+                       isSignedIn() &&
+                       isValidTimestampsOnUpdate(incoming()) &&
+                       isValidMarketplaceOrderMutable(incoming()) &&
+                       incoming().customerId == existing().customerId &&
+                       incoming().serviceId == existing().serviceId &&
+                       incoming().otp == existing().otp &&
+                       incoming().paymentMethod == existing().paymentMethod &&
+                       (
+                         isAdmin() ||
+                         // Customer updates (before terminal state)
+                         (
+                           isOwner(existing().customerId) &&
+                           existing().status != 'COMPLETED' &&
+                           existing().status != 'CANCELLED' &&
+                           (
+                             (
+                               incoming().status == existing().status &&
+                               incoming().diff(existing()).affectedKeys().hasOnly([
+                                 'slot', 'area', 'address', 'gpsCoords', 'latitude', 'longitude', 'updatedAt'
+                               ])
+                             ) ||
+                             (
+                               existing().status in ['PENDING', 'ACCEPTED'] &&
+                               incoming().status == 'CANCELLED' &&
+                               incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+                             ) ||
+                             (
+                               existing().paymentStatus != 'SETTLED' &&
+                               incoming().paymentStatus == 'PAID_PENDING_VERIFY' &&
+                               incoming().paymentTid.size() >= 4 &&
+                               incoming().diff(existing()).affectedKeys().hasOnly(['paymentTid', 'paymentStatus', 'updatedAt'])
+                             )
+                           )
+                         ) ||
+                         // Customer post-completion rating or digital payment TID submission
+                         (
+                           isOwner(existing().customerId) &&
+                           existing().status == 'COMPLETED' &&
+                           incoming().status == 'COMPLETED' &&
+                           (
+                             incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewNote', 'updatedAt']) ||
+                             (
+                               existing().paymentStatus != 'SETTLED' &&
+                               incoming().paymentStatus == 'PAID_PENDING_VERIFY' &&
+                               incoming().paymentTid.size() >= 4 &&
+                               incoming().diff(existing()).affectedKeys().hasOnly(['paymentTid', 'paymentStatus', 'updatedAt'])
+                             )
+                           )
+                         ) ||
+                         // Approved Worker atomic pickup (PENDING -> ACCEPTED)
+                         (
+                           existing().status == 'PENDING' &&
+                           existing().workerId == '' &&
+                           isApprovedWorker(request.auth.uid) &&
+                           incoming().status == 'ACCEPTED' &&
+                           incoming().workerId == request.auth.uid &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'status', 'workerId', 'assignedWorkerName', 'assignedWorkerPhone', 'leadFeePaid', 'updatedAt'
+                           ])
+                         ) ||
+                         // Assigned Worker active job updates & OTP-verified completion
+                         (
+                           existing().workerId == request.auth.uid &&
+                           existing().status in ['ACCEPTED', 'IN_PROGRESS'] &&
+                           incoming().workerId == existing().workerId &&
+                           (
+                             (
+                               incoming().status in ['ACCEPTED', 'IN_PROGRESS'] &&
+                               incoming().diff(existing()).affectedKeys().hasOnly([
+                                 'status', 'workerLat', 'workerLng', 'partsTotal', 'addedPartsSummary', 'total', 'proofPhotoUri', 'updatedAt'
+                               ])
+                             ) ||
+                             (
+                               existing().status == 'IN_PROGRESS' &&
+                               incoming().status == 'COMPLETED' &&
+                               (existing().paymentMethod != 'CASH' || incoming().paymentStatus == 'SETTLED') &&
+                               incoming().diff(existing()).affectedKeys().hasOnly([
+                                 'status', 'proofPhotoUri', 'partsTotal', 'addedPartsSummary', 'total', 'paymentStatus', 'commissionAmount', 'updatedAt'
+                               ])
+                             )
+                           )
+                         )
+                       );
+
+      allow delete: if isValidId(orderId) && isAdmin();
+
+      // Order-scoped shared chat messages
+      match /messages/{messageId} {
+        allow get: if isValidId(messageId) && isSignedIn() && (
+          isAdmin() ||
+          (resource != null && (existing().customerId == request.auth.uid || existing().workerId == request.auth.uid))
+        );
+        allow list: if isAdmin() || (
+          isSignedIn() && (
+            resource.data.customerId == request.auth.uid ||
+            resource.data.workerId == request.auth.uid
+          )
+        );
+        allow create: if isValidId(messageId) &&
+                         isSignedIn() &&
+                         incoming().senderUid == request.auth.uid &&
+                         incoming().bookingId == orderId &&
+                         incoming().keys().hasAll([
+                           'bookingId', 'customerId', 'workerId', 'senderUid',
+                           'senderRole', 'senderName', 'text', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'bookingId', 'customerId', 'workerId', 'senderUid',
+                           'senderRole', 'senderName', 'text', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidTimestampsOnCreate(incoming()) &&
+                         isValidMarketplaceChatMessage(incoming()) &&
+                         exists(/databases/$(database)/documents/marketplaceOrders/$(orderId)) &&
+                         isValidOrderChatParticipants(orderId, incoming());
+        allow update: if false;
+        allow delete: if isValidId(messageId) && isAdmin();
+      }
+    }
+
+    // --- SHARED MARKETPLACE TOP-UPS, LOANS, BIG JOBS, B2B ---
+    match /marketplaceTopUps/{requestId} {
+      allow get: if isValidId(requestId) && isSignedIn() && (
+        isAdmin() || (resource != null && existing().workerUid == request.auth.uid)
+      );
+      allow list: if isAdmin() || (isSignedIn() && resource.data.workerUid == request.auth.uid);
+
+      allow create: if isValidId(requestId) &&
+                       isSignedIn() &&
+                       incoming().workerUid == request.auth.uid &&
+                       incoming().status == 'PENDING' &&
+                       incoming().keys().hasAll(['workerUid', 'workerName', 'method', 'amount', 'tid', 'status', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['workerUid', 'workerName', 'method', 'amount', 'tid', 'status', 'createdAt', 'updatedAt']) &&
+                       isValidTimestampsOnCreate(incoming()) &&
+                       isValidMarketplaceTopUp(incoming());
+
+      allow update: if isValidId(requestId) &&
+                       isAdmin() &&
+                       isValidMarketplaceTopUp(incoming()) &&
+                       isValidTimestampsOnUpdate(incoming()) &&
+                       incoming().workerUid == existing().workerUid;
+
+      allow delete: if isValidId(requestId) && isAdmin();
+    }
+
+    match /marketplaceToolLoans/{loanId} {
+      allow get: if isValidId(loanId) && isSignedIn() && (
+        isAdmin() || (resource != null && existing().workerUid == request.auth.uid)
+      );
+      allow list: if isAdmin() || (isSignedIn() && resource.data.workerUid == request.auth.uid);
+
+      allow create: if isValidId(loanId) &&
+                       isSignedIn() &&
+                       incoming().workerUid == request.auth.uid &&
+                       incoming().status == 'PENDING' &&
+                       incoming().paidAmount == 0 &&
+                       incoming().keys().hasAll(['workerUid', 'workerName', 'toolName', 'totalPrice', 'dailyQist', 'paidAmount', 'status', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['workerUid', 'workerName', 'toolName', 'totalPrice', 'dailyQist', 'paidAmount', 'status', 'createdAt', 'updatedAt']) &&
+                       isValidTimestampsOnCreate(incoming()) &&
+                       isValidMarketplaceToolLoan(incoming());
+
+      allow update: if isValidId(loanId) &&
+                       isAdmin() &&
+                       isValidMarketplaceToolLoan(incoming()) &&
+                       isValidTimestampsOnUpdate(incoming()) &&
+                       incoming().workerUid == existing().workerUid;
+
+      allow delete: if isValidId(loanId) && isAdmin();
+    }
+
+    match /marketplaceBigJobs/{jobId} {
+      allow get: if isValidId(jobId) && isSignedIn() && (
+        isAdmin() || (resource != null && (existing().customerId == request.auth.uid || existing().status == 'OPEN'))
+      );
+      allow list: if isAdmin() || (
+        isSignedIn() && (resource.data.customerId == request.auth.uid || resource.data.status == 'OPEN')
+      );
+
+      allow create: if isValidId(jobId) &&
+                       isSignedIn() &&
+                       incoming().customerId == request.auth.uid &&
+                       incoming().status == 'OPEN' &&
+                       incoming().keys().hasAll(['customerId', 'category', 'area', 'description', 'budget', 'status', 'acceptedBidId', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['customerId', 'category', 'area', 'description', 'budget', 'status', 'acceptedBidId', 'createdAt', 'updatedAt']) &&
+                       isValidTimestampsOnCreate(incoming()) &&
+                       isValidMarketplaceBigJob(incoming());
+
+      allow update: if isValidId(jobId) &&
+                       isSignedIn() &&
+                       isValidMarketplaceBigJob(incoming()) &&
+                       isValidTimestampsOnUpdate(incoming()) &&
+                       incoming().customerId == existing().customerId &&
+                       (
+                         isAdmin() ||
+                         (
+                           isOwner(existing().customerId) &&
+                           existing().status == 'OPEN' &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedBidId', 'updatedAt'])
+                         )
+                       );
+
+      allow delete: if isValidId(jobId) && isAdmin();
+
+      match /bids/{bidId} {
+        allow get: if isValidId(bidId) && isSignedIn() && (
+          isAdmin() || (resource != null && (existing().customerId == request.auth.uid || existing().workerUid == request.auth.uid))
+        );
+        allow list: if isAdmin() || (
+          isSignedIn() && (resource.data.customerId == request.auth.uid || resource.data.workerUid == request.auth.uid)
+        );
+
+        allow create: if isValidId(bidId) &&
+                         isSignedIn() &&
+                         (isApprovedWorker(request.auth.uid) || isAdmin()) &&
+                         incoming().workerUid == request.auth.uid &&
+                         incoming().bigJobId == jobId &&
+                         incoming().keys().hasAll(['bigJobId', 'customerId', 'workerUid', 'workerName', 'amount', 'note', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['bigJobId', 'customerId', 'workerUid', 'workerName', 'amount', 'note', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsOnCreate(incoming()) &&
+                         isValidMarketplaceBid(incoming()) &&
+                         exists(/databases/$(database)/documents/marketplaceBigJobs/$(jobId)) &&
+                         incoming().customerId == get(/databases/$(database)/documents/marketplaceBigJobs/$(jobId)).data.customerId;
+
+        allow update: if false;
+        allow delete: if isValidId(bidId) && isAdmin();
+      }
+    }
+
+    match /marketplaceB2b/{leadId} {
+      allow get: if isValidId(leadId) && isSignedIn() && (
+        isAdmin() || (resource != null && existing().submittedByUid == request.auth.uid)
+      );
+      allow list: if isAdmin() || (isSignedIn() && resource.data.submittedByUid == request.auth.uid);
+
+      allow create: if isValidId(leadId) &&
+                       isSignedIn() &&
+                       incoming().submittedByUid == request.auth.uid &&
+                       incoming().status == 'NEW' &&
+                       incoming().keys().hasAll(['submittedByUid', 'businessName', 'phone', 'packageName', 'status', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['submittedByUid', 'businessName', 'phone', 'packageName', 'status', 'createdAt', 'updatedAt']) &&
+                       isValidTimestampsOnCreate(incoming()) &&
+                       isValidMarketplaceB2b(incoming());
+
+      allow update: if isValidId(leadId) &&
+                       isAdmin() &&
+                       isValidMarketplaceB2b(incoming()) &&
+                       isValidTimestampsOnUpdate(incoming());
+
+      allow delete: if isValidId(leadId) && isAdmin();
+    }
+
+    // --- GLOBAL MARKETPLACE SETTINGS CONFIG ---
+    match /marketplaceConfig/{configId} {
+      allow get: if isSignedIn() && configId == 'global';
+      allow list: if isAdmin();
+      allow create, update: if configId == 'global' &&
+                               isAdmin() &&
+                               incoming().keys().hasAll(['brand', 'city', 'whatsapp', 'payAccount', 'leadFee', 'commissionPercent', 'updatedAt']) &&
+                               incoming().keys().hasOnly(['brand', 'city', 'whatsapp', 'payAccount', 'leadFee', 'commissionPercent', 'updatedAt']) &&
+                               isValidMarketplaceConfig(incoming());
+      allow delete: if false;
+    }
+
+    // --- PERSISTENT ADMIN EARNINGS & WITHDRAWAL LEDGER ---
+    match /adminLedger/{entryId} {
+      allow get, list: if isAdmin();
+
+      allow create: if isValidId(entryId) &&
+                       isSignedIn() &&
+                       incoming().recordedByUid == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'entryType', 'amount', 'orderId', 'actorName', 'note',
+                         'payoutMethod', 'payoutAccount', 'recordedByUid', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'entryType', 'amount', 'orderId', 'actorName', 'note',
+                         'payoutMethod', 'payoutAccount', 'recordedByUid', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidTimestampsOnCreate(incoming()) &&
+                       isValidAdminLedger(incoming()) &&
+                       (
+                         incoming().entryType in ['LEAD_FEE', 'COMMISSION', 'CARE_PLAN', 'TOOL_QIST'] ||
+                         (incoming().entryType == 'WITHDRAWAL' && isAdmin())
+                       );
+
+      allow update: if false;
+      allow delete: if isValidId(entryId) && isAdmin();
+    }
+
+    // --- USER WORKSPACE DOCUMENT & SUBCOLLECTIONS (Demo / Sandbox) ---
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isValidId(userId) &&
+                       isOwner(userId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'displayName', 'lang', 'brand', 'city', 'whatsapp',
+                         'payAccount', 'leadFee', 'staffPin', 'liveCustomerMode',
+                         'customerCredit', 'walletBalance', 'appRevenue', 'workerOnline',
+                         'workerStrikes', 'usedFirstPromo', 'activeWorkerName', 'isSeeded',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'displayName', 'email', 'lang', 'brand', 'city', 'whatsapp',
+                         'payAccount', 'leadFee', 'staffPin', 'liveCustomerMode',
+                         'customerCredit', 'walletBalance', 'appRevenue', 'workerOnline',
+                         'workerStrikes', 'usedFirstPromo', 'activeWorkerName', 'isSeeded',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidTimestampsOnCreate(incoming()) &&
+                       isValidUserWorkspace(incoming(), userId);
+
+      allow update: if isValidId(userId) &&
+                       (isOwner(userId) || isAdmin()) &&
+                       isValidUserWorkspace(incoming(), existing().userId) &&
+                       isValidTimestampsOnUpdate(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       (
+                         isAdmin() ||
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'displayName', 'email', 'lang', 'brand', 'city', 'whatsapp',
+                           'payAccount', 'leadFee', 'staffPin', 'liveCustomerMode',
+                           'customerCredit', 'walletBalance', 'appRevenue', 'workerOnline',
+                           'workerStrikes', 'usedFirstPromo', 'activeWorkerName', 'isSeeded',
+                           'updatedAt'
+                         ])
+                       );
+
+      allow delete: if isValidId(userId) && (isOwner(userId) || isAdmin());
+
+      // 1. BOOKINGS
+      match /bookings/{bookingId} {
+        allow get: if isValidId(bookingId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+
+        allow create: if isValidId(bookingId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().keys().hasAll([
+                           'isDemo', 'serviceId', 'serviceName', 'fee', 'expressFee', 'promoDisc',
+                           'creditUsed', 'partsTotal', 'addedPartsSummary', 'total', 'leadFeePaid',
+                           'express', 'femaleSafe', 'slot', 'area', 'customerName', 'customerPhone',
+                           'address', 'gpsCoords', 'latitude', 'longitude', 'workerLat', 'workerLng',
+                           'note', 'photoUri', 'voiceNotePath', 'proofPhotoUri', 'otp', 'status',
+                           'assignedWorkerName', 'rating', 'reviewNote', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'isDemo', 'serviceId', 'serviceName', 'fee', 'expressFee', 'promoDisc',
+                           'creditUsed', 'partsTotal', 'addedPartsSummary', 'total', 'leadFeePaid',
+                           'express', 'femaleSafe', 'slot', 'area', 'customerName', 'customerPhone',
+                           'address', 'gpsCoords', 'latitude', 'longitude', 'workerLat', 'workerLng',
+                           'note', 'photoUri', 'voiceNotePath', 'proofPhotoUri', 'otp', 'status',
+                           'assignedWorkerName', 'rating', 'reviewNote', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidTimestampsOnCreate(incoming()) &&
+                         isValidBooking(incoming());
+
+        allow update: if isValidId(bookingId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         isValidBooking(incoming()) &&
+                         isValidTimestampsOnUpdate(incoming()) &&
+                         incoming().serviceId == existing().serviceId &&
+                         incoming().otp == existing().otp &&
+                         (
+                           isAdmin() ||
+                           (
+                             existing().status != 'COMPLETED' &&
+                             existing().status != 'CANCELLED' &&
+                             incoming().diff(existing()).affectedKeys().hasOnly([
+                               'status', 'assignedWorkerName', 'leadFeePaid', 'partsTotal',
+                               'addedPartsSummary', 'total', 'proofPhotoUri', 'rating',
+                               'reviewNote', 'gpsCoords', 'latitude', 'longitude',
+                               'workerLat', 'workerLng', 'slot', 'area', 'address', 'updatedAt'
+                             ])
+                           ) ||
+                           (
+                             existing().status == 'COMPLETED' &&
+                             incoming().status == 'COMPLETED' &&
+                             incoming().diff(existing()).affectedKeys().hasOnly([
+                               'rating', 'reviewNote', 'updatedAt'
+                             ])
+                           )
+                         );
+
+        allow delete: if isValidId(bookingId) && (isOwner(userId) || isAdmin());
+      }
+
+      // 2. WORKERS
+      match /workers/{workerId} {
+        allow get: if isValidId(workerId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+
+        allow create: if isValidId(workerId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().keys().hasAll([
+                           'name', 'skill', 'rating', 'jobsCount', 'femaleSafe', 'info',
+                           'avatarUrl', 'isDemo', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'name', 'skill', 'rating', 'jobsCount', 'femaleSafe', 'info',
+                           'avatarUrl', 'isDemo', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidTimestampsOnCreate(incoming()) &&
+                         isValidWorker(incoming());
+
+        allow update: if isValidId(workerId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         isValidWorker(incoming()) &&
+                         isValidTimestampsOnUpdate(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'name', 'skill', 'rating', 'jobsCount', 'femaleSafe', 'info', 'avatarUrl', 'updatedAt'
+                         ]);
+
+        allow delete: if isValidId(workerId) && (isOwner(userId) || isAdmin());
+      }
+
+      // 3. BIG JOBS
+      match /bigJobs/{jobId} {
+        allow get: if isValidId(jobId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+
+        allow create: if isValidId(jobId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().keys().hasAll([
+                           'category', 'area', 'description', 'budget', 'status',
+                           'acceptedBidId', 'isDemo', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'category', 'area', 'description', 'budget', 'status',
+                           'acceptedBidId', 'isDemo', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidTimestampsOnCreate(incoming()) &&
+                         isValidBigJob(incoming());
+
+        allow update: if isValidId(jobId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         isValidBigJob(incoming()) &&
+                         isValidTimestampsOnUpdate(incoming()) &&
+                         (
+                           isAdmin() ||
+                           (
+                             existing().status == 'OPEN' &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedBidId', 'updatedAt'])
+                           )
+                         );
+
+        allow delete: if isValidId(jobId) && (isOwner(userId) || isAdmin());
+      }
+
+      // 4. BIDS
+      match /bids/{bidId} {
+        allow get: if isValidId(bidId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+
+        allow create: if isValidId(bidId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().keys().hasAll(['bigJobId', 'workerName', 'amount', 'note', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['bigJobId', 'workerName', 'amount', 'note', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsOnCreate(incoming()) &&
+                         isValidBid(incoming()) &&
+                         exists(/databases/$(database)/documents/users/$(userId)/bigJobs/$(incoming().bigJobId));
+
+        allow update: if false;
+        allow delete: if isValidId(bidId) && (isOwner(userId) || isAdmin());
+      }
+
+      // 5. B2B LEADS
+      match /b2bLeads/{leadId} {
+        allow get: if isValidId(leadId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+
+        allow create: if isValidId(leadId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().keys().hasAll(['businessName', 'phone', 'packageName', 'status', 'isDemo', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['businessName', 'phone', 'packageName', 'status', 'isDemo', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsOnCreate(incoming()) &&
+                         isValidB2bLead(incoming());
+
+        allow update: if isValidId(leadId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         isValidB2bLead(incoming()) &&
+                         isValidTimestampsOnUpdate(incoming()) &&
+                         (
+                           isAdmin() ||
+                           (
+                             existing().status == 'NEW' &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+                           )
+                         );
+
+        allow delete: if isValidId(leadId) && (isOwner(userId) || isAdmin());
+      }
+
+      // 6. TOP-UP REQUESTS
+      match /topUpRequests/{requestId} {
+        allow get: if isValidId(requestId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+
+        allow create: if isValidId(requestId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().keys().hasAll(['workerName', 'method', 'amount', 'tid', 'status', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['workerName', 'method', 'amount', 'tid', 'status', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsOnCreate(incoming()) &&
+                         isValidTopUpRequest(incoming());
+
+        allow update: if isValidId(requestId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         isValidTopUpRequest(incoming()) &&
+                         isValidTimestampsOnUpdate(incoming()) &&
+                         (
+                           isAdmin() ||
+                           (
+                             existing().status == 'PENDING' &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+                           )
+                         );
+
+        allow delete: if isValidId(requestId) && (isOwner(userId) || isAdmin());
+      }
+
+      // 7. TOOL LOANS
+      match /toolLoans/{loanId} {
+        allow get: if isValidId(loanId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+
+        allow create: if isValidId(loanId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().keys().hasAll(['workerName', 'toolName', 'totalPrice', 'dailyQist', 'paidAmount', 'status', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['workerName', 'toolName', 'totalPrice', 'dailyQist', 'paidAmount', 'status', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsOnCreate(incoming()) &&
+                         isValidToolLoan(incoming());
+
+        allow update: if isValidId(loanId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         isValidToolLoan(incoming()) &&
+                         isValidTimestampsOnUpdate(incoming()) &&
+                         (
+                           isAdmin() ||
+                           (
+                             existing().status != 'PAID_OFF' &&
+                             incoming().diff(existing()).affectedKeys().hasOnly(['paidAmount', 'status', 'updatedAt'])
+                           )
+                         );
+
+        allow delete: if isValidId(loanId) && (isOwner(userId) || isAdmin());
+      }
+
+      // 8. CHAT MESSAGES
+      match /chatMessages/{messageId} {
+        allow get: if isValidId(messageId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+
+        allow create: if isValidId(messageId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().keys().hasAll(['bookingId', 'senderRole', 'senderName', 'text', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['bookingId', 'senderRole', 'senderName', 'text', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsOnCreate(incoming()) &&
+                         isValidChatMessage(incoming()) &&
+                         exists(/databases/$(database)/documents/users/$(userId)/bookings/$(incoming().bookingId));
+
+        allow update: if false;
+        allow delete: if isValidId(messageId) && (isOwner(userId) || isAdmin());
+      }
+
+      // 9. ACTIVE PLANS
+      match /activePlans/{planId} {
+        allow get: if isValidId(planId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+
+        allow create: if isValidId(planId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().keys().hasAll(['planId', 'title', 'desc', 'price', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['planId', 'title', 'desc', 'price', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsOnCreate(incoming()) &&
+                         isValidActivePlan(incoming());
+
+        allow update: if false;
+        allow delete: if isValidId(planId) && (isOwner(userId) || isAdmin());
+      }
+    }
+  }
+}

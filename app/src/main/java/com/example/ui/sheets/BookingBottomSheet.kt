@@ -5,8 +5,10 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +27,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -32,17 +35,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import coil.compose.AsyncImage
 import com.example.data.local.UserProfileEntity
 import com.example.data.preferences.AppPrefsState
 import com.example.model.CatalogData
 import com.example.model.ServiceItem
+import com.example.ui.components.CrossDevicePhoto
+import com.example.ui.components.FlagshipCard
+import com.example.ui.components.FlagshipPrimaryButton
 import com.example.ui.components.KaamWalaGeo
+import com.example.ui.components.KaamWalaInputShape
 import com.example.ui.components.NetworkImageWithFallback
+import com.example.ui.components.ReceiptRow
 import com.example.ui.components.ServicePinMapPicker
+import com.example.ui.components.kaamWalaTextFieldColors
 import com.example.ui.theme.LocalKaamWalaExtras
+import com.example.ui.theme.tabularMono
 import com.example.util.PlatformHelpers
 import com.example.util.VoiceNoteHelper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,6 +87,7 @@ fun BookingBottomSheet(
     val extras = LocalKaamWalaExtras.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val voiceHelper = remember { VoiceNoteHelper(context) }
+    val coroutineScope = rememberCoroutineScope()
 
     DisposableEffect(Unit) {
         onDispose { voiceHelper.release() }
@@ -184,8 +197,13 @@ fun BookingBottomSheet(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri ->
             if (uri != null) {
-                photoUri = uri.toString()
-                onShowToast("Problem photo attached!")
+                coroutineScope.launch {
+                    val encoded = withContext(Dispatchers.IO) {
+                        PlatformHelpers.encodeCompressedPhotoDataUri(context, uri)
+                    }
+                    photoUri = encoded
+                    onShowToast("Problem photo compressed & attached!")
+                }
             }
         }
     )
@@ -202,16 +220,21 @@ fun BookingBottomSheet(
     val creditUsed = minOf(prefs.customerCredit, afterPromo)
     val payableTotal = (afterPromo - creditUsed).coerceAtLeast(0)
 
+    val fieldColors = kaamWalaTextFieldColors()
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        scrimColor = Color(0x880F172A),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = extras.inputBorder) }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 18.dp)
                 .padding(bottom = 28.dp)
         ) {
             Row(
@@ -221,7 +244,8 @@ fun BookingBottomSheet(
             ) {
                 Text(
                     text = "${strings.bookBtnPrefix} ${service.localizedName(prefs.lang)}",
-                    style = MaterialTheme.typography.titleLarge
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f)
                 )
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Filled.Close, contentDescription = "Close booking sheet")
@@ -229,14 +253,15 @@ fun BookingBottomSheet(
             }
 
             // Service Preview Card
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                border = BorderStroke(1.dp, extras.cardBorder),
+            FlagshipCard(
+                shape = RoundedCornerShape(16.dp),
+                containerColor = extras.inputFill,
+                borderColor = extras.cardBorder,
+                shadowElevation = 2.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
-                    modifier = Modifier.padding(10.dp),
+                    modifier = Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     NetworkImageWithFallback(
@@ -244,13 +269,13 @@ fun BookingBottomSheet(
                         contentDescription = service.nameEn,
                         modifier = Modifier
                             .size(56.dp)
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(RoundedCornerShape(12.dp))
                     )
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(
                             "Visit Fee: ${PlatformHelpers.formatPkr(service.fee)}",
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.titleSmall.tabularMono(),
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
@@ -264,15 +289,16 @@ fun BookingBottomSheet(
 
             // Standard Rate Card
             Spacer(Modifier.height(10.dp))
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                border = BorderStroke(1.dp, extras.cardBorder),
+            FlagshipCard(
+                shape = RoundedCornerShape(14.dp),
+                containerColor = MaterialTheme.colorScheme.surface,
+                borderColor = extras.inputBorder,
+                shadowElevation = 2.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(10.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
                     Text("Standard Rate Card", style = MaterialTheme.typography.labelLarge)
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(6.dp))
                     service.rates.forEach { rate ->
                         Row(
                             modifier = Modifier
@@ -280,37 +306,49 @@ fun BookingBottomSheet(
                                 .padding(vertical = 3.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(rate.label, style = MaterialTheme.typography.bodySmall)
-                            Text(rate.price, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                            Text(rate.label, style = MaterialTheme.typography.bodySmall, color = extras.secondaryText)
+                            Text(
+                                rate.price,
+                                style = MaterialTheme.typography.labelMedium.tabularMono(),
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                 }
             }
 
             // Time Slot
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
             Text(strings.timeSlotLabel, style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 listOf(
                     "Standard (45 Min)" to "45 Mins",
                     "Aaj Shaam 4-7 PM" to "Shaam",
                     "Kal Subah 10 AM" to "Kal Subah"
                 ).forEach { (value, label) ->
                     val active = selectedSlot == value
+                    val slotBg by animateColorAsState(
+                        targetValue = if (active) MaterialTheme.colorScheme.primaryContainer else extras.inputFill,
+                        label = "slot_bg"
+                    )
                     Surface(
                         onClick = { selectedSlot = value },
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                        border = BorderStroke(1.dp, if (active) MaterialTheme.colorScheme.primary else extras.cardBorder),
+                        shape = RoundedCornerShape(12.dp),
+                        color = slotBg,
+                        border = BorderStroke(
+                            width = if (active) 1.5.dp else 1.dp,
+                            color = if (active) MaterialTheme.colorScheme.primary else extras.inputBorder
+                        ),
                         modifier = Modifier
                             .weight(1f)
-                            .heightIn(min = 44.dp)
+                            .heightIn(min = 48.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 8.dp)) {
                             Text(
                                 text = label,
                                 style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (active) FontWeight.ExtraBold else FontWeight.SemiBold,
                                 color = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                             )
                         }
@@ -368,6 +406,8 @@ fun BookingBottomSheet(
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("${strings.societyAreaLabel} (${prefs.city})") },
+                    shape = KaamWalaInputShape,
+                    colors = fieldColors,
                     trailingIcon = { Text("▾", modifier = Modifier.padding(end = 12.dp)) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -399,30 +439,35 @@ fun BookingBottomSheet(
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             OutlinedTextField(
                 value = customerName,
                 onValueChange = { customerName = it },
                 label = { Text("Aapka Naam") },
                 placeholder = { Text("Hamza Khan") },
                 singleLine = true,
+                shape = KaamWalaInputShape,
+                colors = fieldColors,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("booking_name_input")
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             OutlinedTextField(
                 value = customerPhone,
                 onValueChange = { customerPhone = it },
                 label = { Text("WhatsApp Number") },
                 placeholder = { Text("0300-1234567") },
                 singleLine = true,
+                shape = KaamWalaInputShape,
+                colors = fieldColors,
+                textStyle = LocalTextStyle.current.tabularMono(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("booking_phone_input")
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -434,13 +479,16 @@ fun BookingBottomSheet(
                     label = { Text("Address + Live GPS") },
                     placeholder = { Text("House #14, Street 3, Block C") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = fieldColors,
                     modifier = Modifier
                         .weight(1f)
                         .testTag("booking_address_input")
                 )
                 OutlinedButton(
                     onClick = { requestGpsCapture() },
-                    contentPadding = PaddingValues(horizontal = 10.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
                     modifier = Modifier
                         .heightIn(min = 52.dp)
                         .testTag("booking_gps_button")
@@ -453,7 +501,7 @@ fun BookingBottomSheet(
             if (gpsCoords.isNotBlank()) {
                 Text(
                     "GPS Attached: $gpsCoords",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall.tabularMono(),
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = 4.dp)
                 )
@@ -557,7 +605,7 @@ fun BookingBottomSheet(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    AsyncImage(
+                    CrossDevicePhoto(
                         model = photoUri,
                         contentDescription = "Selected problem photo",
                         contentScale = ContentScale.Crop,
@@ -634,31 +682,35 @@ fun BookingBottomSheet(
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
                 label = { Text("Masla / Tafseel") },
                 placeholder = { Text("Masla likhein...") },
                 minLines = 2,
+                shape = KaamWalaInputShape,
+                colors = fieldColors,
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             OutlinedTextField(
                 value = promoCode,
                 onValueChange = { promoCode = it },
                 label = { Text("Promo Code (FIRST200 / REF200)") },
                 placeholder = { Text("FIRST200") },
                 singleLine = true,
+                shape = KaamWalaInputShape,
+                colors = fieldColors,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("booking_promo_input")
             )
 
             // Payment Method Selection
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
             Text("Payment ka Tarika (Method)", style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -670,21 +722,28 @@ fun BookingBottomSheet(
                     "RAAST" to "Raast"
                 ).forEach { (methodKey, label) ->
                     val selected = paymentMethod == methodKey
+                    val payBg by animateColorAsState(
+                        targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer else extras.inputFill,
+                        label = "pay_bg"
+                    )
                     Surface(
                         onClick = { paymentMethod = methodKey },
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                        border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else extras.cardBorder),
+                        shape = RoundedCornerShape(12.dp),
+                        color = payBg,
+                        border = BorderStroke(
+                            width = if (selected) 1.5.dp else 1.dp,
+                            color = if (selected) MaterialTheme.colorScheme.primary else extras.inputBorder
+                        ),
                         modifier = Modifier
                             .weight(1f)
-                            .heightIn(min = 40.dp)
+                            .heightIn(min = 48.dp)
                             .testTag("booking_payment_$methodKey")
                     ) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 8.dp, horizontal = 2.dp)) {
                             Text(
                                 text = label,
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium,
                                 color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                             )
                         }
@@ -692,9 +751,9 @@ fun BookingBottomSheet(
                 }
             }
             if (paymentMethod != "CASH") {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = extras.amberBg,
                     border = BorderStroke(1.dp, extras.amberBorder),
                     modifier = Modifier.fillMaxWidth()
@@ -703,33 +762,45 @@ fun BookingBottomSheet(
                         text = "${prefs.payAccount} — Booking ke baad Orders tab mein TID submit karein.",
                         style = MaterialTheme.typography.labelSmall,
                         color = extras.amberText,
-                        modifier = Modifier.padding(8.dp)
+                        modifier = Modifier.padding(10.dp)
                     )
                 }
             }
 
-            // Price Breakdown
-            Spacer(Modifier.height(10.dp))
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = extras.emeraldTint,
-                border = BorderStroke(1.dp, extras.emeraldBorder),
+            // Summary Receipt Card
+            Spacer(Modifier.height(12.dp))
+            FlagshipCard(
+                shape = RoundedCornerShape(16.dp),
+                containerColor = extras.receiptBg,
+                borderColor = extras.emeraldBorder.copy(alpha = 0.7f),
+                shadowElevation = 4.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SummaryRow("Visit Fee:", PlatformHelpers.formatPkr(service.fee))
-                    SummaryRow("Express Fee:", PlatformHelpers.formatPkr(expressFee))
-                    SummaryRow("Promo Code Discount:", "- ${PlatformHelpers.formatPkr(promoDiscount)}")
-                    SummaryRow("Referral Wallet Used:", "- ${PlatformHelpers.formatPkr(creditUsed)}")
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "BILL RECEIPT SUMMARY",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    ReceiptRow("Visit Fee:", PlatformHelpers.formatPkr(service.fee))
+                    ReceiptRow("Express Fee:", PlatformHelpers.formatPkr(expressFee))
+                    ReceiptRow("Promo Code Discount:", "- ${PlatformHelpers.formatPkr(promoDiscount)}")
+                    ReceiptRow("Referral Wallet Used:", "- ${PlatformHelpers.formatPkr(creditUsed)}")
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 6.dp),
+                        color = extras.inputBorder
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Payable:", style = MaterialTheme.typography.titleSmall)
                         Text(
                             PlatformHelpers.formatPkr(payableTotal),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleLarge.tabularMono(),
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -746,13 +817,13 @@ fun BookingBottomSheet(
                 )
             }
 
-            Spacer(Modifier.height(14.dp))
-            Button(
+            Spacer(Modifier.height(16.dp))
+            FlagshipPrimaryButton(
                 onClick = {
                     if (customerName.isBlank() || customerPhone.isBlank() || address.isBlank()) {
                         formError = "Naam, WhatsApp Number aur Address fill karein."
                         onShowToast("Naam, Phone aur Address fill karein!")
-                        return@Button
+                        return@FlagshipPrimaryButton
                     }
                     formError = null
                     if (isRecording) {
@@ -781,22 +852,11 @@ fun BookingBottomSheet(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 50.dp)
+                    .heightIn(min = 52.dp)
                     .testTag("confirm_booking_button")
             ) {
                 Text(strings.confirmBookingBtn, style = MaterialTheme.typography.titleSmall)
             }
         }
-    }
-}
-
-@Composable
-private fun SummaryRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(label, style = MaterialTheme.typography.bodySmall)
-        Text(value, style = MaterialTheme.typography.labelMedium)
     }
 }

@@ -44,7 +44,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ai.LiveUstadSessionManager
 import com.example.ai.LiveVoiceConnectionStatus
+import com.example.ui.components.tactilePress
 import com.example.ui.theme.LocalKaamWalaExtras
+import com.example.ui.theme.tabularMono
 import com.example.util.PlatformHelpers
 
 @Composable
@@ -257,7 +259,7 @@ fun LiveVoiceAssistantDialog(
                                 )
                                 Text(
                                     text = "${voiceState.recommendationReason ?: svc.desc} • Visit ${PlatformHelpers.formatPkr(svc.fee)}",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.bodySmall.tabularMono(),
                                     color = extras.secondaryText
                                 )
                             }
@@ -266,7 +268,8 @@ fun LiveVoiceAssistantDialog(
                                     manager.stopConversation(scope)
                                     onBookRecommendedService(svc.id)
                                 },
-                                modifier = Modifier.heightIn(min = 42.dp)
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.heightIn(min = 48.dp)
                             ) {
                                 Icon(Icons.Filled.Build, contentDescription = null, modifier = Modifier.size(15.dp))
                                 Spacer(Modifier.width(4.dp))
@@ -346,6 +349,7 @@ fun LiveVoiceAssistantDialog(
                     when (voiceState.status) {
                         LiveVoiceConnectionStatus.IDLE,
                         LiveVoiceConnectionStatus.ERROR -> {
+                            val startInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
                             Button(
                                 onClick = {
                                     if (hasAudioPermission) {
@@ -354,8 +358,11 @@ fun LiveVoiceAssistantDialog(
                                         micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                     }
                                 },
+                                interactionSource = startInteraction,
+                                shape = RoundedCornerShape(14.dp),
                                 modifier = Modifier
                                     .weight(1f)
+                                    .tactilePress(startInteraction)
                                     .heightIn(min = 48.dp)
                                     .testTag("start_live_voice_button")
                             ) {

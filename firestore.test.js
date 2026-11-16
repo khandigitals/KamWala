@@ -530,3 +530,282 @@ test("Marketplace KYC & Roles: Worker cannot self-approve, Admin approves, then 
     })
   );
 });
+
+test("Compressed Base64 photoUri & proofPhotoUri up to 65536 chars allowed, oversized rejected", async () => {
+  const aliceDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const mediumDataUri = "data:image/jpeg;base64," + "A".repeat(30000);
+  const oversizedUri = "data:image/jpeg;base64," + "B".repeat(66000);
+
+  await assertSucceeds(
+    aliceDb.collection("marketplaceOrders").doc("MKT-IMG-OK").set({
+      ...validMarketplaceOrder(ALICE_UID),
+      photoUri: mediumDataUri,
+      proofPhotoUri: mediumDataUri,
+    })
+  );
+
+  await assertFails(
+    aliceDb.collection("marketplaceOrders").doc("MKT-IMG-BAD").set({
+      ...validMarketplaceOrder(ALICE_UID),
+      photoUri: oversizedUri,
+    })
+  );
+});
+
+test("Shared marketplaceBigJobs & bids: Customer creates OPEN job, approved worker bids, unapproved rejected, Customer awards", async () => {
+  const customerDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const workerDb = testEnv.authenticatedContext(BOB_UID).firestore();
+  const unapprovedDb = testEnv.authenticatedContext("unapproved_uid").firestore();
+  const adminDb = testEnv.authenticatedContext("admin_uid_1", {
+    email: "mnc.sahjavi@gmail.com",
+    email_verified: true,
+  }).firestore();
+
+  await assertSucceeds(workerDb.collection("marketplaceProfiles").doc(BOB_UID).set(validWorkerProfile(BOB_UID)));
+  await assertSucceeds(
+    adminDb.collection("marketplaceProfiles").doc(BOB_UID).update({
+      verificationStatus: "APPROVED",
+      updatedAt: serverTimestamp(),
+    })
+  );
+
+  const jobRef = customerDb.collection("marketplaceBigJobs").doc("BJ-MKT-1");
+  await assertSucceeds(
+    jobRef.set({
+      customerId: ALICE_UID,
+      category: "Solar Panel Setup",
+      area: "Bahria Town",
+      description: "5kW Hybrid setup",
+      budget: 50000,
+      status: "OPEN",
+      acceptedBidId: "",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+  );
+
+  // Unapproved user cannot place bid
+  await assertFails(
+    unapprovedDb.collection("marketplaceBigJobs").doc("BJ-MKT-1").collection("bids").doc("BID-BAD").set({
+      bigJobId: "BJ-MKT-1",
+      customerId: ALICE_UID,
+      workerUid: "unapproved_uid",
+      workerName: "Fake Pro",
+      amount: 40000,
+      note: "Fast",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+  );
+
+  // Approved worker places bid
+  await assertSucceeds(
+    workerDb.collection("marketplaceBigJobs").doc("BJ-MKT-1").collection("bids").doc("BID-1").set({
+      bigJobId: "BJ-MKT-1",
+      customerId: ALICE_UID,
+      workerUid: BOB_UID,
+      workerName: "Ustad Bilal",
+      amount: 45000,
+      note: "Complete in 2 days",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+  );
+
+  // Customer can read bids on own job & award job
+  await assertSucceeds(
+    customerDb.collection("marketplaceBigJobs").doc("BJ-MKT-1").collection("bids").where("customerId", "==", ALICE_UID).get()
+  );
+  await assertSucceeds(
+    jobRef.update({
+      status: "AWARDED",
+      acceptedBidId: "BID-1",
+      updatedAt: serverTimestamp(),
+    })
+  );
+});
+
+test("Shared marketplaceB2b: Submit restricted to owner, Admin only list/activate", async () => {
+  const customerDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const otherDb = testEnv.authenticatedContext(BOB_UID).firestore();
+  const adminDb = testEnv.authenticatedContext("admin_uid_1", {
+    email: "mnc.sahjavi@gmail.com",
+    email_verified: true,
+  }).firestore();
+
+  const leadRef = customerDb.collection("marketplaceB2b").doc("B2B-MKT-1");
+  await assertSucceeds(
+    leadRef.set({
+      submittedByUid: ALICE_UID,
+      businessName: "City Care Clinic",
+      phone: "03001112233",
+      packageName: "Office Care Rs. 8,000/mo",
+      status: "NEW",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+  );
+
+  // Non-admin cannot read another user's B2B lead or activate
+  await assertFails(otherDb.collection("marketplaceB2b").doc("B2B-MKT-1").get());
+  await assertFails(
+    otherDb.collection("marketplaceB2b").doc("B2B-MKT-1").update({
+      status: "ACTIVE",
+      updatedAt: serverTimestamp(),
+    })
+  );
+  await assertFails(
+    customerDb.collection("marketplaceB2b").doc("B2B-MKT-1").update({
+      status: "ACTIVE",
+      updatedAt: serverTimestamp(),
+    })
+  );
+
+  // Admin can list and activate
+  await assertSucceeds(adminDb.collection("marketplaceB2b").get());
+  await assertSucceeds(
+    adminDb.collection("marketplaceB2b").doc("B2B-MKT-1").update({
+      status: "ACTIVE",
+      updatedAt: serverTimestamp(),
+    })
+  );
+});
+
+test("Atomic Customer cancel refund, Job completion stats, Quality strike, and Rating sync enforced", async () => {
+  const customerDb = testEnv.authenticatedContext(ALICE_UID).firestore();
+  const workerDb = testEnv.authenticatedContext(BOB_UID).firestore();
+  const adminDb = testEnv.authenticatedContext("admin_uid_1", {
+    email: "mnc.sahjavi@gmail.com",
+    email_verified: true,
+  }).firestore();
+
+  await assertSucceeds(workerDb.collection("marketplaceProfiles").doc(BOB_UID).set(validWorkerProfile(BOB_UID)));
+  await assertSucceeds(
+    adminDb.collection("marketplaceProfiles").doc(BOB_UID).update({
+      verificationStatus: "APPROVED",
+      walletBalance: 500,
+      updatedAt: serverTimestamp(),
+    })
+  );
+
+  // Order A: Customer cancels ACCEPTED order -> atomic lead-fee refund
+  const orderARef = customerDb.collection("marketplaceOrders").doc("MKT-REF-1");
+  await assertSucceeds(orderARef.set(validMarketplaceOrder(ALICE_UID)));
+  await assertSucceeds(
+    workerDb.collection("marketplaceOrders").doc("MKT-REF-1").update({
+      status: "ACCEPTED",
+      workerId: BOB_UID,
+      assignedWorkerName: "Ustad Bilal",
+      assignedWorkerPhone: "03009911223",
+      leadFeePaid: 50,
+      updatedAt: serverTimestamp(),
+    })
+  );
+  await assertSucceeds(
+    workerDb.collection("marketplaceProfiles").doc(BOB_UID).update({
+      walletBalance: 450,
+      updatedAt: serverTimestamp(),
+    })
+  );
+
+  // Standalone refund without cancelling order MUST fail
+  await assertFails(
+    customerDb.collection("marketplaceProfiles").doc(BOB_UID).update({
+      walletBalance: 500,
+      lastRefundOrderId: "MKT-REF-1",
+      updatedAt: serverTimestamp(),
+    })
+  );
+
+  // Atomic batch cancelling order + refunding leadFeePaid MUST succeed
+  const cancelBatch = customerDb.batch();
+  cancelBatch.update(orderARef, {
+    status: "CANCELLED",
+    updatedAt: serverTimestamp(),
+  });
+  cancelBatch.update(customerDb.collection("marketplaceProfiles").doc(BOB_UID), {
+    walletBalance: 500,
+    lastRefundOrderId: "MKT-REF-1",
+    updatedAt: serverTimestamp(),
+  });
+  await assertSucceeds(cancelBatch.commit());
+
+  // Order B: Worker completes IN_PROGRESS -> COMPLETED and atomically increments jobsCompleted & totalEarnings
+  const orderBRef = customerDb.collection("marketplaceOrders").doc("MKT-CMP-1");
+  await assertSucceeds(
+    orderBRef.set({
+      ...validMarketplaceOrder(ALICE_UID),
+      paymentMethod: "CASH",
+    })
+  );
+  await assertSucceeds(
+    workerDb.collection("marketplaceOrders").doc("MKT-CMP-1").update({
+      status: "ACCEPTED",
+      workerId: BOB_UID,
+      assignedWorkerName: "Ustad Bilal",
+      assignedWorkerPhone: "03009911223",
+      leadFeePaid: 50,
+      updatedAt: serverTimestamp(),
+    })
+  );
+  await assertSucceeds(
+    workerDb.collection("marketplaceOrders").doc("MKT-CMP-1").update({
+      status: "IN_PROGRESS",
+      updatedAt: serverTimestamp(),
+    })
+  );
+  const completeBatch = workerDb.batch();
+  completeBatch.update(workerDb.collection("marketplaceOrders").doc("MKT-CMP-1"), {
+    status: "COMPLETED",
+    paymentStatus: "SETTLED",
+    commissionAmount: 70,
+    updatedAt: serverTimestamp(),
+  });
+  completeBatch.update(workerDb.collection("marketplaceProfiles").doc(BOB_UID), {
+    jobsCompleted: 1,
+    totalEarnings: 630,
+    lastCompletedOrderId: "MKT-CMP-1",
+    updatedAt: serverTimestamp(),
+  });
+  await assertSucceeds(completeBatch.commit());
+
+  // Customer first rating sync updates order rating + worker profile rating atomically
+  const rateBatch = customerDb.batch();
+  rateBatch.update(orderBRef, {
+    rating: 4,
+    reviewNote: "Good cooling check",
+    updatedAt: serverTimestamp(),
+  });
+  rateBatch.update(customerDb.collection("marketplaceProfiles").doc(BOB_UID), {
+    rating: 4.0,
+    lastRatedOrderId: "MKT-CMP-1",
+    updatedAt: serverTimestamp(),
+  });
+  await assertSucceeds(rateBatch.commit());
+
+  // Customer quality strike batch adds [STRIKE LOGGED] and increments worker strikes 0 -> 1
+  const strikeBatch = customerDb.batch();
+  strikeBatch.update(orderBRef, {
+    reviewNote: "Good cooling check [STRIKE LOGGED]",
+    updatedAt: serverTimestamp(),
+  });
+  strikeBatch.update(customerDb.collection("marketplaceProfiles").doc(BOB_UID), {
+    strikes: 1,
+    lastStrikeOrderId: "MKT-CMP-1",
+    updatedAt: serverTimestamp(),
+  });
+  await assertSucceeds(strikeBatch.commit());
+
+  // Replay strike on already-struck order MUST fail
+  const replayStrikeBatch = customerDb.batch();
+  replayStrikeBatch.update(orderBRef, {
+    reviewNote: "Duplicate [STRIKE LOGGED]",
+    updatedAt: serverTimestamp(),
+  });
+  replayStrikeBatch.update(customerDb.collection("marketplaceProfiles").doc(BOB_UID), {
+    strikes: 2,
+    lastStrikeOrderId: "MKT-CMP-1",
+    updatedAt: serverTimestamp(),
+  });
+  await assertFails(replayStrikeBatch.commit());
+});

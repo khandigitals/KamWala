@@ -20,7 +20,8 @@ val PlusJakartaSansFamily = FontFamily(
     Font(R.font.plus_jakarta_sans, FontWeight.Normal),
     Font(R.font.plus_jakarta_sans, FontWeight.Medium),
     Font(R.font.plus_jakarta_sans, FontWeight.SemiBold),
-    Font(R.font.plus_jakarta_sans, FontWeight.Bold)
+    Font(R.font.plus_jakarta_sans, FontWeight.Bold),
+    Font(R.font.plus_jakarta_sans, FontWeight.ExtraBold)
 )
 
 val JetBrainsMonoFamily = FontFamily(
@@ -28,35 +29,50 @@ val JetBrainsMonoFamily = FontFamily(
     Font(R.font.jetbrains_mono, FontWeight.Bold)
 )
 
+fun TextStyle.tabularMono(): TextStyle = copy(
+    fontFamily = JetBrainsMonoFamily,
+    fontFeatureSettings = "tnum"
+)
+
+val TabularMonoStyle = TextStyle(
+    fontFamily = JetBrainsMonoFamily,
+    fontWeight = FontWeight.Bold,
+    fontFeatureSettings = "tnum"
+)
+
 val KaamWalaTypography = Typography(
     headlineLarge = TextStyle(
-        fontFamily = OutfitFontFamily,
+        fontFamily = PlusJakartaSansFamily,
         fontWeight = FontWeight.ExtraBold,
         fontSize = 24.sp,
-        lineHeight = 30.sp
+        lineHeight = 30.sp,
+        letterSpacing = (-0.4).sp
     ),
     headlineMedium = TextStyle(
-        fontFamily = OutfitFontFamily,
-        fontWeight = FontWeight.Bold,
+        fontFamily = PlusJakartaSansFamily,
+        fontWeight = FontWeight.ExtraBold,
         fontSize = 20.sp,
-        lineHeight = 26.sp
+        lineHeight = 26.sp,
+        letterSpacing = (-0.3).sp
     ),
     titleLarge = TextStyle(
-        fontFamily = OutfitFontFamily,
-        fontWeight = FontWeight.Bold,
+        fontFamily = PlusJakartaSansFamily,
+        fontWeight = FontWeight.ExtraBold,
         fontSize = 18.sp,
-        lineHeight = 24.sp
+        lineHeight = 24.sp,
+        letterSpacing = (-0.2).sp
     ),
     titleMedium = TextStyle(
-        fontFamily = OutfitFontFamily,
+        fontFamily = PlusJakartaSansFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 15.sp,
-        lineHeight = 20.sp
+        fontSize = 15.5.sp,
+        lineHeight = 21.sp,
+        letterSpacing = (-0.1).sp
     ),
     titleSmall = TextStyle(
         fontFamily = PlusJakartaSansFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 13.sp,
+        fontSize = 13.5.sp,
         lineHeight = 18.sp
     ),
     bodyLarge = TextStyle(
@@ -86,13 +102,13 @@ val KaamWalaTypography = Typography(
     labelMedium = TextStyle(
         fontFamily = PlusJakartaSansFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 11.sp,
-        lineHeight = 14.sp
+        fontSize = 11.5.sp,
+        lineHeight = 15.sp
     ),
     labelSmall = TextStyle(
         fontFamily = PlusJakartaSansFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 10.sp,
+        fontSize = 10.5.sp,
         lineHeight = 13.sp
     )
 )

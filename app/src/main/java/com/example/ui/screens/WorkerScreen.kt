@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,33 +32,45 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
-import coil.compose.AsyncImage
-import com.example.ui.components.KaamWalaGeo
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.example.data.local.BigJobEntity
 import com.example.data.local.BookingEntity
 import com.example.model.CatalogData
 import com.example.model.ToolCatalogItem
 import com.example.ui.KaamWalaUiState
 import com.example.ui.WorkerSubTab
+import com.example.ui.components.CrossDevicePhoto
+import com.example.ui.components.FlagshipCard
+import com.example.ui.components.FlagshipPrimaryButton
+import com.example.ui.components.KaamWalaCardShape
+import com.example.ui.components.KaamWalaGeo
+import com.example.ui.components.KaamWalaInputShape
 import com.example.ui.components.NetworkImageWithFallback
+import com.example.ui.components.ReceiptRow
 import com.example.ui.components.StatusPill
+import com.example.ui.components.kaamWalaTextFieldColors
 import com.example.ui.theme.LocalKaamWalaExtras
+import com.example.ui.theme.tabularMono
 import com.example.util.PlatformHelpers
 import com.example.util.VoiceNoteHelper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 @Composable
 fun WorkerScreen(
@@ -89,6 +102,7 @@ fun WorkerScreen(
     val effectiveStrikes = if (state.userProfile?.role == "WORKER") state.userProfile.strikes else state.prefs.workerStrikes
 
     val voiceHelper = remember { VoiceNoteHelper(context) }
+    val coroutineScope = rememberCoroutineScope()
     var playingBookingId by remember { mutableStateOf<String?>(null) }
     var workerMenuExpanded by remember { mutableStateOf(false) }
     var pendingProofBooking by remember { mutableStateOf<BookingEntity?>(null) }
@@ -103,10 +117,15 @@ fun WorkerScreen(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri ->
             val target = pendingProofBooking
-            if (uri != null && target != null) {
-                onAttachProof(target, uri.toString())
-            }
             pendingProofBooking = null
+            if (uri != null && target != null) {
+                coroutineScope.launch {
+                    val encoded = withContext(Dispatchers.IO) {
+                        PlatformHelpers.encodeCompressedPhotoDataUri(context, uri)
+                    }
+                    onAttachProof(target, encoded)
+                }
+            }
         }
     )
 
@@ -142,17 +161,17 @@ fun WorkerScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 24.dp)
+        contentPadding = PaddingValues(bottom = 28.dp)
     ) {
         // 1. HEADER
         item {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                    .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
                     .background(Brush.linearGradient(listOf(extras.heroStart, extras.heroEnd)))
                     .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                    .padding(horizontal = 18.dp, vertical = 18.dp)
             ) {
                 Column {
                     Row(
@@ -161,48 +180,64 @@ fun WorkerScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(strings.workerHdr, style = MaterialTheme.typography.titleLarge, color = Color.White)
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Surface(
                                 onClick = onToggleOnline,
-                                shape = RoundedCornerShape(20.dp),
+                                shape = RoundedCornerShape(999.dp),
                                 color = if (effectiveOnline) Color(0xFF065F46) else extras.dangerBg,
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
-                                modifier = Modifier.testTag("worker_online_toggle")
+                                border = BorderStroke(1.dp, extras.frostedPillBorder),
+                                modifier = Modifier
+                                    .heightIn(min = 38.dp)
+                                    .testTag("worker_online_toggle")
                             ) {
-                                Text(
-                                    text = if (effectiveOnline) "Online" else "Offline",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = if (effectiveOnline) Color.White else extras.dangerText,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                )
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                                ) {
+                                    Text(
+                                        text = if (effectiveOnline) "Online" else "Offline",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (effectiveOnline) Color.White else extras.dangerText
+                                    )
+                                }
                             }
                             IconButton(
                                 onClick = onLockStaff,
                                 modifier = Modifier
-                                    .size(34.dp)
+                                    .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.16f))
+                                    .background(extras.frostedPill)
+                                    .border(1.dp, extras.frostedPillBorder, CircleShape)
                             ) {
-                                Icon(Icons.Filled.Lock, contentDescription = "Lock Staff", tint = Color.White, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Filled.Lock, contentDescription = "Lock Staff", tint = Color.White, modifier = Modifier.size(17.dp))
                             }
                         }
                     }
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Surface(shape = RoundedCornerShape(8.dp), color = Color.White.copy(alpha = 0.14f)) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = extras.frostedPill,
+                            border = BorderStroke(1.dp, extras.frostedPillBorder)
+                        ) {
                             Text(
                                 "Lead Fee: Rs. ${state.prefs.leadFee}",
-                                style = MaterialTheme.typography.labelSmall,
+                                style = MaterialTheme.typography.labelSmall.tabularMono(),
                                 color = Color.White,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                             )
                         }
-                        Surface(shape = RoundedCornerShape(8.dp), color = Color.White.copy(alpha = 0.14f)) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = extras.frostedPill,
+                            border = BorderStroke(1.dp, extras.frostedPillBorder)
+                        ) {
                             Text(
                                 "Strikes: $effectiveStrikes/3",
-                                style = MaterialTheme.typography.labelSmall,
+                                style = MaterialTheme.typography.labelSmall.tabularMono(),
                                 color = if (effectiveStrikes >= 3) extras.dangerText else Color.White,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                             )
                         }
                     }
@@ -215,10 +250,17 @@ fun WorkerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
-                    .clip(RoundedCornerShape(18.dp))
+                    .padding(horizontal = 18.dp, vertical = 14.dp)
+                    .shadow(
+                        elevation = 12.dp,
+                        shape = RoundedCornerShape(20.dp),
+                        ambientColor = extras.ambientShadow,
+                        spotColor = extras.ambientShadow
+                    )
+                    .clip(RoundedCornerShape(20.dp))
                     .background(Brush.linearGradient(listOf(extras.darkSurface, extras.darkSurfaceAlt)))
-                    .padding(14.dp)
+                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+                    .padding(16.dp)
             ) {
                 Column {
                     Row(
@@ -229,25 +271,26 @@ fun WorkerScreen(
                             url = activeWorker?.avatarUrl ?: "",
                             contentDescription = activeWorkerName,
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(48.dp)
                                 .clip(CircleShape)
                                 .border(2.dp, extras.emeraldMint, CircleShape)
                         )
-                        Spacer(Modifier.width(10.dp))
+                        Spacer(Modifier.width(12.dp))
+                        val canSwitchWorker = state.userProfile?.role != "WORKER" || state.isAdminUser
                         Box(modifier = Modifier.weight(1f)) {
                             Column(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { workerMenuExpanded = true }
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable(enabled = canSwitchWorker) { workerMenuExpanded = true }
                                     .padding(4.dp)
                             ) {
                                 Text(
-                                    text = "$activeWorkerName ▾",
+                                    text = if (canSwitchWorker) "$activeWorkerName ▾" else activeWorkerName,
                                     style = MaterialTheme.typography.titleSmall,
                                     color = Color.White
                                 )
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Filled.Verified, contentDescription = null, tint = extras.emeraldMint, modifier = Modifier.size(13.dp))
+                                    Icon(Icons.Filled.Verified, contentDescription = null, tint = extras.emeraldMint, modifier = Modifier.size(14.dp))
                                     Spacer(Modifier.width(4.dp))
                                     val skillLabel = state.userProfile?.takeIf { it.role == "WORKER" }?.skill?.ifBlank { null }
                                         ?: activeWorker?.skill ?: "Pro"
@@ -278,12 +321,14 @@ fun WorkerScreen(
                                 PlatformHelpers.playAlertTone()
                                 onShowToast("Incoming Job Alert Ringtone Tested!")
                             },
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = Color.White.copy(alpha = 0.14f),
+                                containerColor = extras.frostedPill,
                                 contentColor = Color.White
                             ),
-                            modifier = Modifier.heightIn(min = 36.dp)
+                            border = BorderStroke(1.dp, extras.frostedPillBorder),
+                            modifier = Modifier.heightIn(min = 40.dp)
                         ) {
                             Icon(Icons.Filled.NotificationsActive, contentDescription = null, modifier = Modifier.size(15.dp))
                             Spacer(Modifier.width(4.dp))
@@ -291,7 +336,7 @@ fun WorkerScreen(
                         }
                     }
 
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(14.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -299,17 +344,20 @@ fun WorkerScreen(
                     ) {
                         Column {
                             Text("Prepaid Lead Wallet", style = MaterialTheme.typography.labelSmall, color = Color(0xFFCBD5E1))
+                            Spacer(Modifier.height(2.dp))
                             Text(
                                 text = PlatformHelpers.formatPkr(state.effectiveWalletBalance),
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Black,
+                                style = MaterialTheme.typography.headlineMedium.tabularMono(),
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.ExtraBold,
                                 color = extras.emeraldMint
                             )
                         }
                         Button(
                             onClick = onOpenTopUp,
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
-                                .heightIn(min = 42.dp)
+                                .heightIn(min = 46.dp)
                                 .testTag("worker_recharge_button")
                         ) {
                             Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -355,17 +403,17 @@ fun WorkerScreen(
                         "Register"
                     )
                 }
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = bg as Color,
-                    border = BorderStroke(1.dp, border as Color),
+                FlagshipCard(
+                    containerColor = bg as Color,
+                    borderColor = border as Color,
+                    shadowElevation = 4.dp,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 10.dp)
+                        .padding(horizontal = 18.dp)
+                        .padding(bottom = 12.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -373,13 +421,16 @@ fun WorkerScreen(
                             text = msg as String,
                             style = MaterialTheme.typography.labelMedium,
                             color = fg as Color,
-                            modifier = Modifier.weight(1f).padding(end = 8.dp)
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 10.dp)
                         )
                         OutlinedButton(
                             onClick = onOpenRegistration,
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             modifier = Modifier
-                                .heightIn(min = 36.dp)
+                                .heightIn(min = 42.dp)
                                 .testTag("worker_kyc_banner_button")
                         ) {
                             Text(btnLabel as String, style = MaterialTheme.typography.labelSmall)
@@ -389,15 +440,16 @@ fun WorkerScreen(
             }
         }
 
-        // 3. SUBTABS
+        // 3. SEGMENTED SUBTABS
         item {
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.secondaryContainer,
+                border = BorderStroke(1.dp, extras.cardBorder),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 10.dp)
+                    .padding(horizontal = 18.dp)
+                    .padding(bottom = 12.dp)
             ) {
                 Row(modifier = Modifier.padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf(
@@ -406,19 +458,29 @@ fun WorkerScreen(
                         WorkerSubTab.HISAB to "Hisab & Tools"
                     ).forEach { (tab, title) ->
                         val active = state.workerSubTab == tab
+                        val segBg by animateColorAsState(
+                            targetValue = if (active) MaterialTheme.colorScheme.surface else Color.Transparent,
+                            label = "worker_seg_$title"
+                        )
+                        val segFg by animateColorAsState(
+                            targetValue = if (active) MaterialTheme.colorScheme.primary else extras.secondaryText,
+                            label = "worker_seg_fg_$title"
+                        )
                         Surface(
                             onClick = { onSelectSubTab(tab) },
-                            shape = RoundedCornerShape(9.dp),
-                            color = if (active) MaterialTheme.colorScheme.surface else Color.Transparent,
+                            shape = RoundedCornerShape(10.dp),
+                            color = segBg,
+                            shadowElevation = if (active) 2.dp else 0.dp,
                             modifier = Modifier
                                 .weight(1f)
-                                .heightIn(min = 40.dp)
+                                .heightIn(min = 44.dp)
                         ) {
-                            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 8.dp)) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 10.dp)) {
                                 Text(
                                     text = title,
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = if (active) MaterialTheme.colorScheme.primary else extras.secondaryText
+                                    fontWeight = if (active) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                    color = segFg
                                 )
                             }
                         }
@@ -434,19 +496,19 @@ fun WorkerScreen(
                 val pendingCount = visibleJobs.count { it.status == "PENDING" }
                 if (pendingCount > 0) {
                     item {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = extras.amberBg,
-                            border = BorderStroke(1.dp, extras.amberBorder),
+                        FlagshipCard(
+                            containerColor = extras.amberBg,
+                            borderColor = extras.amberBorder,
+                            shadowElevation = 4.dp,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .padding(horizontal = 18.dp, vertical = 4.dp)
                         ) {
                             Text(
                                 text = "$pendingCount Nayi Job Requests Available! Accept karke Lead pakkein.",
-                                style = MaterialTheme.typography.labelLarge,
+                                style = MaterialTheme.typography.labelLarge.tabularMono(),
                                 color = extras.amberText,
-                                modifier = Modifier.padding(12.dp)
+                                modifier = Modifier.padding(14.dp)
                             )
                         }
                     }
@@ -456,7 +518,7 @@ fun WorkerScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                            .padding(horizontal = 18.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         listOf(
@@ -465,11 +527,15 @@ fun WorkerScreen(
                             "ACTIVE" to strings.workerFilterActive,
                             "DONE" to strings.workerFilterDone
                         ).forEach { (key, label) ->
+                            val selected = jobStatusFilter == key
                             FilterChip(
-                                selected = jobStatusFilter == key,
+                                selected = selected,
                                 onClick = { jobStatusFilter = key },
+                                shape = RoundedCornerShape(12.dp),
                                 label = { Text(label, style = MaterialTheme.typography.labelSmall) },
-                                modifier = Modifier.testTag("worker_filter_${key.lowercase()}")
+                                modifier = Modifier
+                                    .heightIn(min = 40.dp)
+                                    .testTag("worker_filter_${key.lowercase()}")
                             )
                         }
                     }
@@ -484,12 +550,18 @@ fun WorkerScreen(
                 }
                 if (filteredJobs.isEmpty()) {
                     item {
-                        Text(
-                            text = "Is category mein koi job nahi hai.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = extras.mutedText,
-                            modifier = Modifier.padding(24.dp)
-                        )
+                        FlagshipCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 18.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "Is category mein koi job nahi hai.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = extras.mutedText,
+                                modifier = Modifier.padding(24.dp)
+                            )
+                        }
                     }
                 } else {
                     items(filteredJobs, key = { it.id }) { booking ->
@@ -548,12 +620,18 @@ fun WorkerScreen(
                 val openBigJobs = state.bigJobs.filter { it.status == "OPEN" }
                 if (openBigJobs.isEmpty()) {
                     item {
-                        Text(
-                            "Abhi koi Open Big Job nahi hai.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = extras.mutedText,
-                            modifier = Modifier.padding(24.dp)
-                        )
+                        FlagshipCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 18.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                "Abhi koi Open Big Job nahi hai.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = extras.mutedText,
+                                modifier = Modifier.padding(24.dp)
+                            )
+                        }
                     }
                 } else {
                     items(openBigJobs, key = { it.id }) { job ->
@@ -564,48 +642,66 @@ fun WorkerScreen(
 
             WorkerSubTab.HISAB -> {
                 item {
-                    val workerJobs = state.workerVisibleBookings.filter {
-                        (state.currentUserId.isNotBlank() && it.workerId == state.currentUserId) ||
-                            it.assignedWorkerName == activeWorkerName ||
-                            it.status == "COMPLETED"
+                    val isRegisteredWorker = state.userProfile?.role == "WORKER" && !state.isAdminUser
+                    val workerJobs = state.workerVisibleBookings.filter { b ->
+                        if (isRegisteredWorker) {
+                            b.workerId == state.currentUserId ||
+                                (b.workerId.isBlank() && b.assignedWorkerName == activeWorkerName)
+                        } else {
+                            (state.currentUserId.isNotBlank() && b.workerId == state.currentUserId) ||
+                                b.assignedWorkerName == activeWorkerName
+                        }
                     }
                     val completedJobs = workerJobs.filter { it.status == "COMPLETED" }
                     val totalEarned = completedJobs.sumOf { it.total }
                     val totalLeadFees = workerJobs.sumOf { it.leadFeePaid }
                     val totalCommission = completedJobs.sumOf { it.commissionAmount }
                     val netEarnings = (totalEarned - totalLeadFees - totalCommission).coerceAtLeast(0)
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, extras.cardBorder),
+                    FlagshipCard(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                            .padding(horizontal = 18.dp, vertical = 6.dp)
+                            .testTag("worker_hisab_ledger_card")
                     ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                "WORKER EARNINGS RECEIPT",
+                                style = MaterialTheme.typography.labelSmall,
+                                letterSpacing = 1.sp,
+                                color = extras.mutedText
+                            )
+                            Spacer(Modifier.height(2.dp))
                             Text("Worker Earnings Ledger", style = MaterialTheme.typography.titleMedium)
-                            Spacer(Modifier.height(8.dp))
-                            LedgerRow("Active Pro", activeWorkerName)
-                            LedgerRow("Completed Jobs", "${completedJobs.size}")
-                            LedgerRow("Gross Job Earnings", PlatformHelpers.formatPkr(totalEarned))
-                            LedgerRow("Lead Fees Paid", PlatformHelpers.formatPkr(totalLeadFees))
-                            LedgerRow("Platform Commission (${state.prefs.commissionPercent}%)", PlatformHelpers.formatPkr(totalCommission))
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-                            LedgerRow("Net Karegar Earnings", PlatformHelpers.formatPkr(netEarnings), bold = true)
+                            Spacer(Modifier.height(10.dp))
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(extras.receiptBg)
+                                    .border(1.dp, extras.cardBorder, RoundedCornerShape(14.dp))
+                                    .padding(12.dp)
+                            ) {
+                                ReceiptRow("Active Pro", activeWorkerName)
+                                ReceiptRow("Completed Jobs", "${completedJobs.size}")
+                                ReceiptRow("Gross Job Earnings", PlatformHelpers.formatPkr(totalEarned))
+                                ReceiptRow("Lead Fees Paid", PlatformHelpers.formatPkr(totalLeadFees))
+                                ReceiptRow("Platform Commission (${state.prefs.commissionPercent}%)", PlatformHelpers.formatPkr(totalCommission))
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = extras.cardBorder)
+                                ReceiptRow("Net Karegar Earnings", PlatformHelpers.formatPkr(netEarnings), bold = true)
+                            }
                         }
                     }
                 }
 
                 item {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = extras.emeraldTint,
-                        border = BorderStroke(1.dp, extras.emeraldBorder),
+                    FlagshipCard(
+                        containerColor = extras.emeraldTint,
+                        borderColor = extras.emeraldBorder,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                            .padding(horizontal = 18.dp, vertical = 8.dp)
                     ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
+                        Column(modifier = Modifier.padding(16.dp)) {
                             Text("Tool Micro-Financing (Asaan Qist)", style = MaterialTheme.typography.titleMedium, color = extras.heroStart)
                             Text(
                                 "Rozana qist wallet se kat kar naye tools lein:",
@@ -615,7 +711,7 @@ fun WorkerScreen(
                             Spacer(Modifier.height(10.dp))
                             CatalogData.TOOL_ITEMS.forEach { tool ->
                                 Surface(
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = RoundedCornerShape(14.dp),
                                     color = MaterialTheme.colorScheme.surface,
                                     border = BorderStroke(1.dp, extras.cardBorder),
                                     modifier = Modifier
@@ -623,7 +719,7 @@ fun WorkerScreen(
                                         .padding(vertical = 4.dp)
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(10.dp),
+                                        modifier = Modifier.padding(12.dp),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
@@ -631,14 +727,15 @@ fun WorkerScreen(
                                             Text(tool.name, style = MaterialTheme.typography.titleSmall)
                                             Text(
                                                 "Total ${PlatformHelpers.formatPkr(tool.price)} • Rs. ${tool.dailyQist}/day",
-                                                style = MaterialTheme.typography.bodySmall,
+                                                style = MaterialTheme.typography.bodySmall.tabularMono(),
                                                 color = extras.mutedText
                                             )
                                         }
                                         Button(
                                             onClick = { onApplyToolLoan(tool) },
-                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                            modifier = Modifier.heightIn(min = 38.dp)
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                            modifier = Modifier.heightIn(min = 42.dp)
                                         ) {
                                             Text("Apply", style = MaterialTheme.typography.labelSmall)
                                         }
@@ -646,16 +743,20 @@ fun WorkerScreen(
                                 }
                             }
                             if (state.toolLoans.isNotEmpty()) {
-                                Spacer(Modifier.height(8.dp))
+                                Spacer(Modifier.height(10.dp))
                                 Text("Your Active Tool Loans:", style = MaterialTheme.typography.labelLarge)
                                 state.toolLoans.forEach { loan ->
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(top = 4.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                            .padding(top = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text("${loan.toolName} (${loan.paidAmount}/${loan.totalPrice})", style = MaterialTheme.typography.bodySmall)
+                                        Text(
+                                            "${loan.toolName} (${loan.paidAmount}/${loan.totalPrice})",
+                                            style = MaterialTheme.typography.bodySmall.tabularMono()
+                                        )
                                         StatusPill(loan.status)
                                     }
                                 }
@@ -665,28 +766,6 @@ fun WorkerScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun LedgerRow(label: String, value: String, bold: Boolean = false) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal
-        )
-        Text(
-            value,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Bold,
-            color = if (bold) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-        )
     }
 }
 
@@ -707,97 +786,143 @@ private fun WorkerJobCard(
     onComplete: () -> Unit
 ) {
     val extras = LocalKaamWalaExtras.current
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, extras.cardBorder),
+    FlagshipCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .padding(horizontal = 18.dp, vertical = 6.dp)
             .testTag("worker_job_card_${booking.id}")
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("${booking.id} • ${booking.serviceName}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                Text(
+                    "${booking.id} • ${booking.serviceName}",
+                    style = MaterialTheme.typography.titleSmall.tabularMono(),
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
                 StatusPill(booking.status, isUrgent = booking.express && booking.status == "PENDING")
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
             Text("${booking.customerName} • ${booking.customerPhone}", style = MaterialTheme.typography.bodySmall)
             Text("${booking.address} (${booking.area})", style = MaterialTheme.typography.bodySmall, color = extras.mutedText)
             if (booking.note.isNotBlank()) {
                 Text("Masla: ${booking.note}", style = MaterialTheme.typography.bodySmall, color = extras.secondaryText)
             }
             if (booking.photoUri.isNotBlank()) {
-                Spacer(Modifier.height(6.dp))
-                AsyncImage(
+                Spacer(Modifier.height(8.dp))
+                CrossDevicePhoto(
                     model = booking.photoUri,
                     contentDescription = "Customer problem photo",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(110.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                        .height(115.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                )
+            }
+            if (booking.proofPhotoUri.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                CrossDevicePhoto(
+                    model = booking.proofPhotoUri,
+                    contentDescription = "Uploaded proof photo",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(105.dp)
+                        .clip(RoundedCornerShape(12.dp))
                 )
             }
             if (booking.voiceNotePath.isNotBlank()) {
-                Spacer(Modifier.height(6.dp))
-                OutlinedButton(
-                    onClick = onToggleVoicePlay,
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    modifier = Modifier.heightIn(min = 36.dp)
+                val localVoiceExists = remember(booking.voiceNotePath) {
+                    File(booking.voiceNotePath).exists()
+                }
+                Spacer(Modifier.height(8.dp))
+                if (localVoiceExists) {
+                    OutlinedButton(
+                        onClick = onToggleVoicePlay,
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.heightIn(min = 40.dp)
+                    ) {
+                        Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            if (isPlayingVoice) "Stop Voice Note" else "Play Customer Voice Note",
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = onWhatsAppCustomer,
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier
+                            .heightIn(min = 40.dp)
+                            .testTag("worker_missing_voice_${booking.id}")
+                    ) {
+                        Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            "Voice Note (Recorded on sender's phone — Ask on WhatsApp)",
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(extras.receiptBg)
+                    .border(1.dp, extras.cardBorder, RoundedCornerShape(12.dp))
+                    .padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
                     Text(
-                        if (isPlayingVoice) "Stop Voice Note" else "Play Customer Voice Note",
-                        style = MaterialTheme.typography.labelSmall
+                        "Bill: ${PlatformHelpers.formatPkr(booking.total)} • ${booking.slot}",
+                        style = MaterialTheme.typography.labelMedium.tabularMono(),
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    StatusPill(booking.paymentStatus)
+                }
+                val payHint = when {
+                    booking.paymentMethod == "CASH" -> "Cash wasool karein kaam mukammal hone par"
+                    booking.paymentStatus == "SETTLED" -> "Digital (${booking.paymentMethod}) Verified & Settled"
+                    else -> "Digital (${booking.paymentMethod}) • Admin verification/escrow"
+                }
+                Text(payHint, style = MaterialTheme.typography.labelSmall, color = extras.mutedText)
+                if (booking.workerLat != 0.0 || booking.workerLng != 0.0) {
+                    Text(
+                        "Live GPS Shared: ${KaamWalaGeo.formatLatLng(booking.workerLat, booking.workerLng)}",
+                        style = MaterialTheme.typography.labelSmall.tabularMono(),
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
-            Spacer(Modifier.height(6.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "Bill: ${PlatformHelpers.formatPkr(booking.total)} • ${booking.slot}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                StatusPill(booking.paymentStatus)
-            }
-            val payHint = when {
-                booking.paymentMethod == "CASH" -> "Cash wasool karein kaam mukammal hone par"
-                booking.paymentStatus == "SETTLED" -> "Digital (${booking.paymentMethod}) Verified & Settled"
-                else -> "Digital (${booking.paymentMethod}) • Admin verification/escrow"
-            }
-            Text(payHint, style = MaterialTheme.typography.labelSmall, color = extras.mutedText)
 
-            if (booking.workerLat != 0.0 || booking.workerLng != 0.0) {
-                Text(
-                    "Live GPS Shared: ${KaamWalaGeo.formatLatLng(booking.workerLat, booking.workerLng)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-            // Direct customer contact row (Call + WhatsApp + Chat)
+            Spacer(Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 OutlinedButton(
                     onClick = onCallCustomer,
+                    shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp),
                     modifier = Modifier
                         .weight(1f)
-                        .heightIn(min = 38.dp)
+                        .heightIn(min = 42.dp)
                         .testTag("worker_call_customer_${booking.id}")
                 ) {
                     Icon(Icons.Filled.Call, contentDescription = "Call Customer", modifier = Modifier.size(14.dp))
@@ -806,10 +931,11 @@ private fun WorkerJobCard(
                 }
                 OutlinedButton(
                     onClick = onWhatsAppCustomer,
+                    shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp),
                     modifier = Modifier
                         .weight(1f)
-                        .heightIn(min = 38.dp)
+                        .heightIn(min = 42.dp)
                         .testTag("worker_whatsapp_customer_${booking.id}")
                 ) {
                     Icon(Icons.Filled.Share, contentDescription = "WhatsApp Customer", modifier = Modifier.size(14.dp))
@@ -818,10 +944,11 @@ private fun WorkerJobCard(
                 }
                 OutlinedButton(
                     onClick = onChat,
+                    shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp),
                     modifier = Modifier
                         .weight(1f)
-                        .heightIn(min = 38.dp)
+                        .heightIn(min = 42.dp)
                         .testTag("worker_chat_customer_${booking.id}")
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat", modifier = Modifier.size(14.dp))
@@ -834,32 +961,31 @@ private fun WorkerJobCard(
 
             when (booking.status) {
                 "PENDING" -> {
-                    Button(
+                    FlagshipPrimaryButton(
                         onClick = onAccept,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 44.dp)
                             .testTag("worker_accept_job_${booking.id}")
                     ) {
-                        Text("Accept Job (-Rs. $leadFee Lead Fee)")
+                        Text("Accept Job (-Rs. $leadFee Lead Fee)", style = MaterialTheme.typography.labelLarge)
                     }
                 }
                 "ACCEPTED" -> {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Button(
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FlagshipPrimaryButton(
                             onClick = onVerifyOtp,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 44.dp)
                                 .testTag("worker_verify_otp_${booking.id}")
                         ) {
-                            Text("Verify OTP & Start")
+                            Text("Verify OTP & Start", style = MaterialTheme.typography.labelLarge)
                         }
                         OutlinedButton(
                             onClick = onShareGps,
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 40.dp)
+                                .heightIn(min = 44.dp)
                                 .testTag("worker_share_gps_${booking.id}")
                         ) {
                             Icon(Icons.Filled.MyLocation, contentDescription = null, modifier = Modifier.size(15.dp))
@@ -869,12 +995,15 @@ private fun WorkerJobCard(
                     }
                 }
                 "IN_PROGRESS" -> {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             OutlinedButton(
                                 onClick = onUploadProof,
+                                shape = RoundedCornerShape(12.dp),
                                 contentPadding = PaddingValues(horizontal = 8.dp),
-                                modifier = Modifier.weight(1f).heightIn(min = 42.dp)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 44.dp)
                             ) {
                                 Icon(Icons.Filled.CameraAlt, contentDescription = null, modifier = Modifier.size(15.dp))
                                 Spacer(Modifier.width(4.dp))
@@ -882,8 +1011,11 @@ private fun WorkerJobCard(
                             }
                             OutlinedButton(
                                 onClick = onAddParts,
+                                shape = RoundedCornerShape(12.dp),
                                 contentPadding = PaddingValues(horizontal = 8.dp),
-                                modifier = Modifier.weight(1f).heightIn(min = 42.dp)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 44.dp)
                             ) {
                                 Icon(Icons.Filled.Build, contentDescription = null, modifier = Modifier.size(15.dp))
                                 Spacer(Modifier.width(4.dp))
@@ -891,10 +1023,11 @@ private fun WorkerJobCard(
                             }
                             Button(
                                 onClick = onComplete,
+                                shape = RoundedCornerShape(12.dp),
                                 contentPadding = PaddingValues(horizontal = 8.dp),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .heightIn(min = 42.dp)
+                                    .heightIn(min = 44.dp)
                                     .testTag("worker_complete_job_${booking.id}")
                             ) {
                                 Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(15.dp))
@@ -904,9 +1037,10 @@ private fun WorkerJobCard(
                         }
                         OutlinedButton(
                             onClick = onShareGps,
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 40.dp)
+                                .heightIn(min = 44.dp)
                                 .testTag("worker_share_gps_${booking.id}")
                         ) {
                             Icon(Icons.Filled.MyLocation, contentDescription = null, modifier = Modifier.size(15.dp))
@@ -942,29 +1076,31 @@ private fun WorkerBigJobBidCard(
     val extras = LocalKaamWalaExtras.current
     var amount by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, extras.cardBorder),
+    FlagshipCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .padding(horizontal = 18.dp, vertical = 6.dp)
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Text("${job.id} • ${job.category}", style = MaterialTheme.typography.titleSmall)
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("${job.id} • ${job.category}", style = MaterialTheme.typography.titleSmall.tabularMono())
+            Spacer(Modifier.height(2.dp))
             Text(
                 "${job.area} • Customer Budget: ${PlatformHelpers.formatPkr(job.budget)}",
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelMedium.tabularMono(),
                 color = MaterialTheme.colorScheme.primary
             )
+            Spacer(Modifier.height(2.dp))
             Text(job.description, style = MaterialTheme.typography.bodySmall, color = extras.secondaryText)
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = amount,
                     onValueChange = { amount = it.filter { c -> c.isDigit() } },
                     label = { Text("Bid (PKR)") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = kaamWalaTextFieldColors(),
+                    textStyle = LocalTextStyle.current.tabularMono(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f)
                 )
@@ -973,11 +1109,13 @@ private fun WorkerBigJobBidCard(
                     onValueChange = { note = it },
                     label = { Text("Note / Time") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = kaamWalaTextFieldColors(),
                     modifier = Modifier.weight(1.4f)
                 )
             }
-            Spacer(Modifier.height(8.dp))
-            Button(
+            Spacer(Modifier.height(10.dp))
+            FlagshipPrimaryButton(
                 onClick = {
                     val amt = amount.toIntOrNull()
                     if (amt != null && amt > 0) {
@@ -986,9 +1124,9 @@ private fun WorkerBigJobBidCard(
                         note = ""
                     }
                 },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Submit Quote Bid")
+                Text("Submit Quote Bid", style = MaterialTheme.typography.labelLarge)
             }
         }
     }

@@ -3,6 +3,7 @@ package com.example.ui.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,7 +34,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.example.R
 import com.example.data.local.BidEntity
 import com.example.data.local.BigJobEntity
@@ -41,13 +41,19 @@ import com.example.data.local.BookingEntity
 import com.example.model.CatalogData
 import com.example.ui.KaamWalaUiState
 import com.example.ui.components.BookingProgressStepper
+import com.example.ui.components.CrossDevicePhoto
+import com.example.ui.components.FlagshipCard
+import com.example.ui.components.FlagshipPrimaryButton
+import com.example.ui.components.KaamWalaDialogShape
 import com.example.ui.components.OrderLiveTrackingMapCard
 import com.example.ui.components.SafetyOtpBanner
 import com.example.ui.components.StatusPill
 import com.example.ui.sheets.RescheduleBookingDialog
 import com.example.ui.theme.LocalKaamWalaExtras
+import com.example.ui.theme.tabularMono
 import com.example.util.PlatformHelpers
 import com.example.util.VoiceNoteHelper
+import java.io.File
 
 @Composable
 fun OrdersScreen(
@@ -76,16 +82,16 @@ fun OrdersScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 24.dp)
+        contentPadding = PaddingValues(bottom = 28.dp)
     ) {
         item {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                    .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
                     .background(Brush.linearGradient(listOf(extras.heroStart, extras.heroEnd)))
                     .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                    .padding(horizontal = 18.dp, vertical = 18.dp)
             ) {
                 Column {
                     Row(
@@ -100,12 +106,14 @@ fun OrdersScreen(
                         )
                         FilledTonalButton(
                             onClick = onNewOrder,
+                            shape = RoundedCornerShape(999.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = Color.White.copy(alpha = 0.16f),
+                                containerColor = extras.frostedPill,
                                 contentColor = Color.White
                             ),
+                            border = BorderStroke(1.dp, extras.frostedPillBorder),
                             modifier = Modifier
-                                .heightIn(min = 38.dp)
+                                .heightIn(min = 44.dp)
                                 .testTag("orders_new_order_button")
                         ) {
                             Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -113,16 +121,17 @@ fun OrdersScreen(
                             Text(strings.ordersNewOrder, style = MaterialTheme.typography.labelMedium)
                         }
                     }
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(8.dp))
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color.White.copy(alpha = 0.14f)
+                        shape = RoundedCornerShape(10.dp),
+                        color = extras.frostedPill,
+                        border = BorderStroke(1.dp, extras.frostedPillBorder)
                     ) {
                         Text(
                             text = strings.ordersSub,
                             style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFFECFDF5),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                         )
                     }
                 }
@@ -135,20 +144,20 @@ fun OrdersScreen(
                 Text(
                     text = strings.ordersCarePlans,
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 6.dp)
+                    modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 6.dp)
                 )
             }
             items(state.activePlans, key = { it.id }) { plan ->
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = extras.emeraldTint,
-                    border = BorderStroke(1.dp, extras.emeraldBorder),
+                FlagshipCard(
+                    containerColor = extras.emeraldTint,
+                    borderColor = extras.emeraldBorder,
+                    shadowElevation = 4.dp,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .padding(horizontal = 18.dp, vertical = 5.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier.padding(14.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -158,7 +167,8 @@ fun OrdersScreen(
                         }
                         Text(
                             text = "${PlatformHelpers.formatPkr(plan.price)}/mo",
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.labelLarge.tabularMono(),
+                            fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -172,20 +182,17 @@ fun OrdersScreen(
                 Text(
                     text = strings.ordersBigJobs,
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 6.dp)
+                    modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 6.dp)
                 )
             }
             items(state.visibleBigJobs, key = { it.id }) { job ->
                 val jobBids = state.bids.filter { it.bigJobId == job.id }
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, extras.cardBorder),
+                FlagshipCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 5.dp)
+                        .padding(horizontal = 18.dp, vertical = 6.dp)
                 ) {
-                    Column(modifier = Modifier.padding(13.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -197,27 +204,27 @@ fun OrdersScreen(
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text = "${job.area} • Budget: ${PlatformHelpers.formatPkr(job.budget)}",
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelMedium.tabularMono(),
                             color = MaterialTheme.colorScheme.primary
                         )
-                        Spacer(Modifier.height(2.dp))
+                        Spacer(Modifier.height(3.dp))
                         Text(job.description, style = MaterialTheme.typography.bodySmall, color = extras.secondaryText)
 
                         if (jobBids.isNotEmpty()) {
-                            Spacer(Modifier.height(8.dp))
+                            Spacer(Modifier.height(10.dp))
                             Text("Worker Quotes (${jobBids.size}):", style = MaterialTheme.typography.labelMedium)
                             jobBids.forEach { bid ->
                                 val isAccepted = job.acceptedBidId == bid.id
                                 Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = if (isAccepted) extras.emeraldTint else MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isAccepted) extras.emeraldTint else extras.receiptBg,
                                     border = BorderStroke(1.dp, if (isAccepted) extras.emeraldBorder else extras.cardBorder),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(top = 5.dp)
+                                        .padding(top = 6.dp)
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(10.dp),
+                                        modifier = Modifier.padding(12.dp),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
@@ -228,15 +235,17 @@ fun OrdersScreen(
                                             }
                                             Text(
                                                 PlatformHelpers.formatPkr(bid.amount),
-                                                style = MaterialTheme.typography.labelLarge,
+                                                style = MaterialTheme.typography.labelLarge.tabularMono(),
+                                                fontWeight = FontWeight.ExtraBold,
                                                 color = MaterialTheme.colorScheme.primary
                                             )
                                         }
                                         if (job.status == "OPEN") {
                                             Button(
                                                 onClick = { onAcceptBid(job, bid) },
-                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                                modifier = Modifier.heightIn(min = 38.dp)
+                                                shape = RoundedCornerShape(10.dp),
+                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                                modifier = Modifier.heightIn(min = 42.dp)
                                             ) {
                                                 Text("Accept", style = MaterialTheme.typography.labelSmall)
                                             }
@@ -264,13 +273,10 @@ fun OrdersScreen(
 
         if (visibleBookings.isEmpty()) {
             item {
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, extras.cardBorder),
+                FlagshipCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp)
+                        .padding(18.dp)
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
@@ -282,10 +288,10 @@ fun OrdersScreen(
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(160.dp)
+                                .height(165.dp)
                                 .clip(RoundedCornerShape(14.dp))
                         )
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(14.dp))
                         Text(strings.ordersEmptyTitle, style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.height(4.dp))
                         Text(
@@ -293,9 +299,9 @@ fun OrdersScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = extras.mutedText
                         )
-                        Spacer(Modifier.height(12.dp))
-                        Button(onClick = onNewOrder) {
-                            Text(strings.ordersEmptyBtn)
+                        Spacer(Modifier.height(14.dp))
+                        FlagshipPrimaryButton(onClick = onNewOrder, modifier = Modifier.fillMaxWidth()) {
+                            Text(strings.ordersEmptyBtn, style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -305,7 +311,7 @@ fun OrdersScreen(
                 Text(
                     text = "${strings.ordersServiceBookings} (${visibleBookings.size})",
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 6.dp)
+                    modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 6.dp)
                 )
             }
             items(visibleBookings, key = { it.id }) { booking ->
@@ -362,11 +368,14 @@ fun OrdersScreen(
     cancelTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { cancelTarget = null },
+            shape = KaamWalaDialogShape,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text("Cancel Order ${target.id}?", style = MaterialTheme.typography.titleLarge) },
             text = {
                 Text(
                     "Kya aap waqai ${target.serviceName} (${target.area}) ki booking cancel karna chahte hain?",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = extras.secondaryText
                 )
             },
             confirmButton = {
@@ -375,17 +384,25 @@ fun OrdersScreen(
                         onCancelBooking(target)
                         cancelTarget = null
                     },
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = extras.dangerText,
                         contentColor = Color.White
                     ),
-                    modifier = Modifier.testTag("confirm_cancel_booking_button")
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .testTag("confirm_cancel_booking_button")
                 ) {
                     Text("Cancel Order")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { cancelTarget = null }) { Text("Keep Order") }
+                TextButton(
+                    onClick = { cancelTarget = null },
+                    modifier = Modifier.heightIn(min = 48.dp)
+                ) {
+                    Text("Keep Order")
+                }
             }
         )
     }
@@ -408,23 +425,25 @@ private fun CustomerBookingCard(
     onWhatsApp: () -> Unit
 ) {
     val extras = LocalKaamWalaExtras.current
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, extras.cardBorder),
+    FlagshipCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .padding(horizontal = 18.dp, vertical = 7.dp)
             .testTag("order_card_${booking.id}")
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("${booking.id} • ${booking.serviceName}", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "${booking.id} • ${booking.serviceName}",
+                        style = MaterialTheme.typography.titleSmall.tabularMono(),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(2.dp))
                     Text(
                         "${booking.area} • ${booking.slot}",
                         style = MaterialTheme.typography.bodySmall,
@@ -437,11 +456,11 @@ private fun CustomerBookingCard(
                 }
             }
 
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
             BookingProgressStepper(status = booking.status)
 
             if (booking.status == "ACCEPTED" || booking.status == "IN_PROGRESS") {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 OrderLiveTrackingMapCard(
                     bookingId = booking.id,
                     workerName = booking.assignedWorkerName.ifBlank { "Verified Ustad" },
@@ -457,110 +476,124 @@ private fun CustomerBookingCard(
             }
 
             if (booking.status != "COMPLETED" && booking.status != "CANCELLED") {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
                 SafetyOtpBanner(otp = booking.otp)
             }
 
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Spacer(Modifier.height(10.dp))
+            // Summary Receipt Box
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(extras.receiptBg)
+                    .border(1.dp, extras.cardBorder, RoundedCornerShape(14.dp))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(
-                    text = "Payable: ${PlatformHelpers.formatPkr(booking.total)} (${booking.paymentMethod})",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.weight(1f)
-                )
-                StatusPill(booking.paymentStatus)
-            }
-            if (booking.paymentTid.isNotBlank()) {
-                Text(
-                    text = "Payment TID: ${booking.paymentTid}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = extras.secondaryText
-                )
-            }
-            if (booking.assignedWorkerName.isNotBlank()) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Ustad: ${booking.assignedWorkerName}" +
-                            if (booking.assignedWorkerPhone.isNotBlank()) " (${booking.assignedWorkerPhone})" else "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = extras.secondaryText,
+                        text = "Payable: ${PlatformHelpers.formatPkr(booking.total)} (${booking.paymentMethod})",
+                        style = MaterialTheme.typography.titleSmall.tabularMono(),
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
                     )
-                    if (booking.assignedWorkerPhone.isNotBlank() && booking.status != "CANCELLED") {
-                        TextButton(
-                            onClick = onCallWorker,
-                            contentPadding = PaddingValues(horizontal = 8.dp),
-                            modifier = Modifier
-                                .heightIn(min = 36.dp)
-                                .testTag("order_call_worker_${booking.id}")
-                        ) {
-                            Icon(Icons.Filled.Call, contentDescription = "Call Ustad", modifier = Modifier.size(15.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Call", style = MaterialTheme.typography.labelSmall)
+                    StatusPill(booking.paymentStatus)
+                }
+                if (booking.paymentTid.isNotBlank()) {
+                    Text(
+                        text = "Payment TID: ${booking.paymentTid}",
+                        style = MaterialTheme.typography.labelSmall.tabularMono(),
+                        color = extras.secondaryText
+                    )
+                }
+                if (booking.assignedWorkerName.isNotBlank()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Ustad: ${booking.assignedWorkerName}" +
+                                if (booking.assignedWorkerPhone.isNotBlank()) " (${booking.assignedWorkerPhone})" else "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = extras.secondaryText,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (booking.assignedWorkerPhone.isNotBlank() && booking.status != "CANCELLED") {
+                            TextButton(
+                                onClick = onCallWorker,
+                                contentPadding = PaddingValues(horizontal = 8.dp),
+                                modifier = Modifier
+                                    .heightIn(min = 38.dp)
+                                    .testTag("order_call_worker_${booking.id}")
+                            ) {
+                                Icon(Icons.Filled.Call, contentDescription = "Call Ustad", modifier = Modifier.size(15.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Call", style = MaterialTheme.typography.labelSmall)
+                            }
                         }
                     }
                 }
-            }
-            if (booking.note.isNotBlank()) {
-                Text(
-                    text = "Note: ${booking.note}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = extras.secondaryText
-                )
-            }
-            if (booking.gpsCoords.isNotBlank()) {
-                Text(
-                    text = "GPS Pin: ${booking.gpsCoords}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            if (booking.addedPartsSummary.isNotBlank()) {
-                Text(
-                    text = "Parts Added: ${booking.addedPartsSummary}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = extras.amberText
-                )
+                if (booking.note.isNotBlank()) {
+                    Text(
+                        text = "Note: ${booking.note}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = extras.secondaryText
+                    )
+                }
+                if (booking.gpsCoords.isNotBlank()) {
+                    Text(
+                        text = "GPS Pin: ${booking.gpsCoords}",
+                        style = MaterialTheme.typography.labelSmall.tabularMono(),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                if (booking.addedPartsSummary.isNotBlank()) {
+                    Text(
+                        text = "Parts Added: ${booking.addedPartsSummary}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = extras.amberText
+                    )
+                }
             }
 
             // Photos or Voice preview
             if (booking.photoUri.isNotBlank() || booking.proofPhotoUri.isNotBlank()) {
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (booking.photoUri.isNotBlank()) {
                         Column {
                             Text("Problem Photo", style = MaterialTheme.typography.labelSmall, color = extras.mutedText)
-                            AsyncImage(
+                            Spacer(Modifier.height(4.dp))
+                            CrossDevicePhoto(
                                 model = booking.photoUri,
                                 contentDescription = "Problem photo",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(RoundedCornerShape(10.dp))
+                                    .size(68.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .border(1.dp, extras.cardBorder, RoundedCornerShape(12.dp))
                             )
                         }
                     }
                     if (booking.proofPhotoUri.isNotBlank()) {
                         Column {
                             Text("Work Proof", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                            AsyncImage(
+                            Spacer(Modifier.height(4.dp))
+                            CrossDevicePhoto(
                                 model = booking.proofPhotoUri,
                                 contentDescription = "Work proof photo",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(RoundedCornerShape(10.dp))
+                                    .size(68.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .border(1.dp, extras.emeraldBorder, RoundedCornerShape(12.dp))
                             )
                         }
                     }
@@ -568,42 +601,62 @@ private fun CustomerBookingCard(
             }
 
             if (booking.voiceNotePath.isNotBlank()) {
-                Spacer(Modifier.height(6.dp))
-                OutlinedButton(
-                    onClick = { onPlayVoice(booking.voiceNotePath) },
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    modifier = Modifier.heightIn(min = 38.dp)
-                ) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(if (isPlayingVoice) "Stop Voice Note" else "Play Voice Note", style = MaterialTheme.typography.labelSmall)
+                val hasLocalVoice = remember(booking.voiceNotePath) { File(booking.voiceNotePath).exists() }
+                Spacer(Modifier.height(8.dp))
+                if (hasLocalVoice) {
+                    OutlinedButton(
+                        onClick = { onPlayVoice(booking.voiceNotePath) },
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.heightIn(min = 42.dp)
+                    ) {
+                        Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(if (isPlayingVoice) "Stop Voice Note" else "Play Voice Note", style = MaterialTheme.typography.labelSmall)
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = onWhatsApp,
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.heightIn(min = 42.dp)
+                    ) {
+                        Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            "Voice Note (Recorded on sender's phone — Ask on WhatsApp)",
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                 }
             }
 
             if (booking.rating > 0) {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Star, contentDescription = null, tint = extras.amberAccent, modifier = Modifier.size(15.dp))
+                    Icon(Icons.Filled.Star, contentDescription = null, tint = extras.amberAccent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(
                         text = "Rated ${booking.rating}/5 ${if (booking.reviewNote.isNotBlank()) "• ${booking.reviewNote}" else ""}",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.tabularMono(),
+                        fontWeight = FontWeight.Bold,
                         color = extras.amberText
                     )
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedButton(
                     onClick = onChat,
+                    shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                     modifier = Modifier
                         .weight(1f)
-                        .heightIn(min = 42.dp)
+                        .heightIn(min = 44.dp)
                         .testTag("order_chat_button_${booking.id}")
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(15.dp))
@@ -612,10 +665,11 @@ private fun CustomerBookingCard(
                 }
                 OutlinedButton(
                     onClick = onParts,
+                    shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                     modifier = Modifier
                         .weight(1f)
-                        .heightIn(min = 42.dp)
+                        .heightIn(min = 44.dp)
                 ) {
                     Icon(Icons.Filled.Build, contentDescription = null, modifier = Modifier.size(15.dp))
                     Spacer(Modifier.width(4.dp))
@@ -624,10 +678,11 @@ private fun CustomerBookingCard(
                 if (booking.status == "COMPLETED") {
                     Button(
                         onClick = onWarranty,
+                        shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .heightIn(min = 42.dp)
+                            .heightIn(min = 44.dp)
                             .testTag("order_warranty_button_${booking.id}")
                     ) {
                         Icon(Icons.Filled.VerifiedUser, contentDescription = null, modifier = Modifier.size(15.dp))
@@ -637,10 +692,11 @@ private fun CustomerBookingCard(
                 } else {
                     FilledTonalButton(
                         onClick = onWhatsApp,
+                        shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .heightIn(min = 42.dp)
+                            .heightIn(min = 44.dp)
                     ) {
                         Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(4.dp))
@@ -650,19 +706,20 @@ private fun CustomerBookingCard(
             }
 
             if (booking.paymentMethod != "CASH" && booking.paymentStatus != "SETTLED" && booking.status != "CANCELLED") {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = onPayTid,
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = extras.amberAccent,
                         contentColor = Color.Black
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 42.dp)
+                        .heightIn(min = 46.dp)
                         .testTag("order_pay_tid_button_${booking.id}")
                 ) {
-                    Icon(Icons.Filled.Payments, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.Payments, contentDescription = null, modifier = Modifier.size(17.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(
                         if (booking.paymentStatus == "PAID_PENDING_VERIFY") "Update Payment TID (${booking.paymentMethod})"
@@ -673,17 +730,18 @@ private fun CustomerBookingCard(
             }
 
             if (booking.status == "PENDING" || booking.status == "ACCEPTED") {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
                         onClick = onReschedule,
+                        shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .heightIn(min = 42.dp)
+                            .heightIn(min = 44.dp)
                             .testTag("order_reschedule_button_${booking.id}")
                     ) {
                         Icon(Icons.Filled.EditCalendar, contentDescription = null, modifier = Modifier.size(15.dp))
@@ -692,11 +750,12 @@ private fun CustomerBookingCard(
                     }
                     OutlinedButton(
                         onClick = onCancel,
+                        shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = extras.dangerText),
                         modifier = Modifier
                             .weight(1f)
-                            .heightIn(min = 42.dp)
+                            .heightIn(min = 44.dp)
                             .testTag("order_cancel_button_${booking.id}")
                     ) {
                         Icon(Icons.Filled.Cancel, contentDescription = null, modifier = Modifier.size(15.dp))
@@ -707,12 +766,13 @@ private fun CustomerBookingCard(
             }
 
             if (booking.status == "COMPLETED" && booking.rating == 0) {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = onRate,
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 42.dp)
+                        .heightIn(min = 44.dp)
                         .testTag("order_rate_button_${booking.id}")
                 ) {
                     Icon(Icons.Filled.Shield, contentDescription = null, modifier = Modifier.size(15.dp))

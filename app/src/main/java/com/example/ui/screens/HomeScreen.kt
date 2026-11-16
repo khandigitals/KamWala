@@ -1,12 +1,14 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -31,9 +33,12 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -41,7 +46,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -53,9 +57,14 @@ import com.example.model.CatalogData
 import com.example.model.ServiceCategory
 import com.example.model.ServiceItem
 import com.example.ui.KaamWalaUiState
+import com.example.ui.components.FlagshipCard
+import com.example.ui.components.FlagshipPrimaryButton
+import com.example.ui.components.KaamWalaCardShape
 import com.example.ui.components.NetworkImageWithFallback
+import com.example.ui.components.tactilePress
 import com.example.ui.theme.JetBrainsMonoFamily
 import com.example.ui.theme.LocalKaamWalaExtras
+import com.example.ui.theme.tabularMono
 import com.example.util.PlatformHelpers
 
 @Composable
@@ -89,14 +98,14 @@ fun HomeScreen(
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 24.dp)
+            contentPadding = PaddingValues(bottom = 28.dp)
         ) {
             // 1. HERO HEADER
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(bottomStart = 26.dp, bottomEnd = 26.dp))
+                        .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.img_hero_home),
@@ -110,8 +119,8 @@ fun HomeScreen(
                             .background(
                                 Brush.linearGradient(
                                     listOf(
-                                        extras.heroStart.copy(alpha = 0.92f),
-                                        extras.heroEnd.copy(alpha = 0.90f)
+                                        extras.heroStart.copy(alpha = 0.94f),
+                                        extras.heroEnd.copy(alpha = 0.92f)
                                     )
                                 )
                             )
@@ -121,7 +130,7 @@ fun HomeScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .statusBarsPadding()
-                            .padding(horizontal = 16.dp, vertical = 14.dp)
+                            .padding(horizontal = 18.dp, vertical = 16.dp)
                     ) {
                         // Top bar
                         Row(
@@ -137,13 +146,14 @@ fun HomeScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(13.dp))
                                         .background(
                                             Brush.linearGradient(
                                                 listOf(extras.emeraldMint, MaterialTheme.colorScheme.primary)
                                             )
-                                        ),
+                                        )
+                                        .border(1.dp, extras.frostedPillBorder, RoundedCornerShape(13.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -153,7 +163,7 @@ fun HomeScreen(
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
-                                Spacer(Modifier.width(9.dp))
+                                Spacer(Modifier.width(10.dp))
                                 Column {
                                     Text(
                                         text = state.prefs.brand,
@@ -184,7 +194,7 @@ fun HomeScreen(
                                         Icon(
                                             Icons.Filled.LocationOn,
                                             contentDescription = null,
-                                            tint = Color.White,
+                                            tint = extras.emeraldMint,
                                             modifier = Modifier.size(13.dp)
                                         )
                                     },
@@ -194,10 +204,10 @@ fun HomeScreen(
                                 IconButton(
                                     onClick = onSettingsTap,
                                     modifier = Modifier
-                                        .size(36.dp)
+                                        .size(38.dp)
                                         .clip(CircleShape)
-                                        .background(Color.White.copy(alpha = 0.16f))
-                                        .border(1.dp, Color.White.copy(alpha = 0.24f), CircleShape)
+                                        .background(extras.frostedPill)
+                                        .border(1.dp, extras.frostedPillBorder, CircleShape)
                                         .testTag("settings_button")
                                 ) {
                                     Icon(
@@ -210,17 +220,17 @@ fun HomeScreen(
                             }
                         }
 
-                        Spacer(Modifier.height(14.dp))
+                        Spacer(Modifier.height(16.dp))
                         Text(
                             text = strings.heroTitle,
                             style = MaterialTheme.typography.headlineMedium,
                             color = Color.White,
-                            lineHeight = 25.sp
+                            lineHeight = 27.sp
                         )
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(10.dp))
 
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.horizontalScroll(rememberScrollState())
                         ) {
                             HeroStatChip("4.9 Avg Rating")
@@ -228,7 +238,7 @@ fun HomeScreen(
                             HeroStatChip("7-Day Warranty")
                         }
 
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(10.dp))
 
                         // Signed-in user bar + Profile + Sign Out
                         Row(
@@ -248,7 +258,9 @@ fun HomeScreen(
                                 color = Color(0xFFD1FAE5),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f).padding(end = 6.dp)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp)
                             )
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 HeroPillButton(
@@ -272,28 +284,35 @@ fun HomeScreen(
                             }
                         }
 
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(12.dp))
 
-                        // Search Box
+                        // Search Box (floating flagship card input)
                         Surface(
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
                             color = MaterialTheme.colorScheme.surface,
-                            shadowElevation = 6.dp,
-                            modifier = Modifier.fillMaxWidth()
+                            border = BorderStroke(1.dp, extras.cardBorder),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .shadow(
+                                    elevation = 10.dp,
+                                    shape = RoundedCornerShape(16.dp),
+                                    ambientColor = extras.ambientShadow,
+                                    spotColor = extras.ambientShadow
+                                )
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                                    .padding(horizontal = 14.dp, vertical = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.AutoAwesome,
                                     contentDescription = "Smart Fault Search",
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(19.dp)
                                 )
-                                Spacer(Modifier.width(8.dp))
+                                Spacer(Modifier.width(10.dp))
                                 Box(modifier = Modifier.weight(1f)) {
                                     if (state.searchQuery.isEmpty()) {
                                         Text(
@@ -308,10 +327,9 @@ fun HomeScreen(
                                         value = state.searchQuery,
                                         onValueChange = onSearchChange,
                                         singleLine = true,
-                                        textStyle = TextStyle(
+                                        textStyle = MaterialTheme.typography.bodyMedium.copy(
                                             color = MaterialTheme.colorScheme.onSurface,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Medium
+                                            fontWeight = FontWeight.SemiBold
                                         ),
                                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                                         modifier = Modifier
@@ -322,7 +340,7 @@ fun HomeScreen(
                                 if (state.searchQuery.isNotEmpty()) {
                                     IconButton(
                                         onClick = { onSearchChange("") },
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(28.dp)
                                     ) {
                                         Icon(
                                             Icons.Filled.Close,
@@ -338,20 +356,23 @@ fun HomeScreen(
                         Spacer(Modifier.height(10.dp))
 
                         // AI Ustad Live Voice CTA
+                        val voiceInteraction = remember { MutableInteractionSource() }
                         Surface(
                             onClick = onOpenLiveVoice,
-                            shape = RoundedCornerShape(14.dp),
-                            color = Color.White.copy(alpha = 0.14f),
-                            border = BorderStroke(1.dp, extras.emeraldMint.copy(alpha = 0.55f)),
+                            interactionSource = voiceInteraction,
+                            shape = RoundedCornerShape(16.dp),
+                            color = extras.frostedPill,
+                            border = BorderStroke(1.dp, extras.emeraldMint.copy(alpha = 0.65f)),
                             modifier = Modifier
+                                .tactilePress(voiceInteraction)
                                 .fillMaxWidth()
-                                .heightIn(min = 48.dp)
+                                .heightIn(min = 52.dp)
                                 .testTag("live_voice_assistant_button")
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    .padding(horizontal = 14.dp, vertical = 11.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
@@ -361,7 +382,7 @@ fun HomeScreen(
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(34.dp)
+                                            .size(36.dp)
                                             .clip(CircleShape)
                                             .background(extras.emeraldMint),
                                         contentAlignment = Alignment.Center
@@ -370,10 +391,10 @@ fun HomeScreen(
                                             imageVector = Icons.Filled.GraphicEq,
                                             contentDescription = "AI Ustad Live Voice",
                                             tint = extras.darkSurface,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(19.dp)
                                         )
                                     }
-                                    Spacer(Modifier.width(10.dp))
+                                    Spacer(Modifier.width(12.dp))
                                     Column {
                                         Text(
                                             text = "AI Ustad Live Voice",
@@ -389,7 +410,7 @@ fun HomeScreen(
                                     }
                                 }
                                 Surface(
-                                    shape = RoundedCornerShape(8.dp),
+                                    shape = RoundedCornerShape(999.dp),
                                     color = extras.emeraldMint
                                 ) {
                                     Text(
@@ -397,7 +418,7 @@ fun HomeScreen(
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = extras.darkSurface,
-                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp)
                                     )
                                 }
                             }
@@ -410,16 +431,16 @@ fun HomeScreen(
             item {
                 AnimatedVisibility(visible = state.matchedAiRule != null) {
                     state.matchedAiRule?.let { rule ->
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = extras.emeraldTint,
-                            border = BorderStroke(1.5.dp, extras.emeraldBorder),
+                        FlagshipCard(
+                            containerColor = extras.emeraldTint,
+                            borderColor = extras.emeraldBorder,
+                            shadowElevation = 6.dp,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                                .padding(top = 12.dp)
+                                .padding(horizontal = 18.dp)
+                                .padding(top = 14.dp)
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
+                            Column(modifier = Modifier.padding(14.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -428,32 +449,40 @@ fun HomeScreen(
                                     Text(
                                         text = "AI Fault Diagnosis",
                                         style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.ExtraBold,
                                         color = MaterialTheme.colorScheme.primary
                                     )
-                                    Text(
-                                        text = rule.estimate,
-                                        fontFamily = JetBrainsMonoFamily,
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(999.dp),
+                                        color = MaterialTheme.colorScheme.surface,
+                                        border = BorderStroke(1.dp, extras.emeraldBorder)
+                                    ) {
+                                        Text(
+                                            text = rule.estimate,
+                                            style = MaterialTheme.typography.labelSmall.tabularMono(),
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                                        )
+                                    }
                                 }
-                                Spacer(Modifier.height(4.dp))
+                                Spacer(Modifier.height(6.dp))
                                 Text(
                                     text = rule.title,
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
+                                Spacer(Modifier.height(2.dp))
                                 Text(
                                     text = "Tip: ${rule.tip}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = extras.secondaryText
                                 )
-                                Spacer(Modifier.height(8.dp))
-                                Button(
+                                Spacer(Modifier.height(10.dp))
+                                FlagshipPrimaryButton(
                                     onClick = { onOpenBooking(rule.serviceId) },
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                                    modifier = Modifier.heightIn(min = 40.dp)
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                                    modifier = Modifier.heightIn(min = 44.dp)
                                 ) {
                                     Text("Book Recommended Pro", style = MaterialTheme.typography.labelMedium)
                                 }
@@ -463,33 +492,38 @@ fun HomeScreen(
                 }
             }
 
-            // 2B. ROLE REGISTRATION CTA (for unregistered users or pending workers)
+            // 2B. ROLE REGISTRATION CTA
             if (!state.isAdminUser && (state.userProfile == null || (state.userProfile.role == "WORKER" && state.userProfile.verificationStatus == "PENDING"))) {
                 item {
                     val isPendingWorker = state.userProfile?.role == "WORKER"
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (isPendingWorker) extras.amberBg else extras.emeraldTint,
-                        border = BorderStroke(1.dp, if (isPendingWorker) extras.amberBorder else extras.emeraldBorder),
+                    FlagshipCard(
+                        containerColor = if (isPendingWorker) extras.amberBg else extras.emeraldTint,
+                        borderColor = if (isPendingWorker) extras.amberBorder else extras.emeraldBorder,
+                        shadowElevation = 4.dp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
+                            .padding(horizontal = 18.dp)
                             .padding(top = 12.dp)
                             .testTag("home_registration_banner")
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 10.dp)
+                            ) {
                                 Text(
                                     text = if (isPendingWorker) "Karegar KYC Under Review" else "Registration Zaroori Hai",
                                     style = MaterialTheme.typography.labelLarge,
                                     color = if (isPendingWorker) extras.amberText else MaterialTheme.colorScheme.primary
                                 )
+                                Spacer(Modifier.height(2.dp))
                                 Text(
                                     text = if (isPendingWorker) {
                                         "Admin verify karega to aapko live orders milna shuru ho jayein ge."
@@ -502,9 +536,10 @@ fun HomeScreen(
                             }
                             Button(
                                 onClick = onOpenRegistration,
-                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp),
                                 modifier = Modifier
-                                    .heightIn(min = 40.dp)
+                                    .heightIn(min = 44.dp)
                                     .testTag("home_register_cta_button")
                             ) {
                                 Text(
@@ -519,28 +554,33 @@ fun HomeScreen(
 
             // 3. 90-DAY REMINDER BANNER
             item {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = extras.amberBg,
-                    border = BorderStroke(1.dp, extras.amberBorder),
+                FlagshipCard(
+                    containerColor = extras.amberBg,
+                    borderColor = extras.amberBorder,
+                    shadowElevation = 4.dp,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
+                        .padding(horizontal = 18.dp)
                         .padding(top = 12.dp)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 10.dp)
+                        ) {
                             Text(
                                 text = strings.remTitle,
                                 style = MaterialTheme.typography.labelLarge,
                                 color = extras.amberText
                             )
+                            Spacer(Modifier.height(2.dp))
                             Text(
                                 text = strings.remDesc,
                                 style = MaterialTheme.typography.bodySmall,
@@ -549,13 +589,14 @@ fun HomeScreen(
                         }
                         FilledTonalButton(
                             onClick = { onOpenBooking("solar") },
+                            shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = extras.amberBadgeBg,
                                 contentColor = extras.amberText
                             ),
                             border = BorderStroke(1.dp, extras.amberAccent),
                             modifier = Modifier
-                                .heightIn(min = 42.dp)
+                                .heightIn(min = 44.dp)
                                 .testTag("reminder_book_solar_button")
                         ) {
                             Text(strings.remBtn, style = MaterialTheme.typography.labelMedium)
@@ -569,15 +610,21 @@ fun HomeScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 10.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .padding(horizontal = 18.dp)
+                        .padding(top = 12.dp)
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = KaamWalaCardShape,
+                            ambientColor = extras.ambientShadow,
+                            spotColor = extras.ambientShadow
+                        )
+                        .clip(KaamWalaCardShape)
                         .background(
                             Brush.linearGradient(
                                 listOf(MaterialTheme.colorScheme.primary, extras.heroStart)
                             )
                         )
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -590,14 +637,15 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.titleSmall,
                                 color = Color.White
                             )
+                            Spacer(Modifier.height(2.dp))
                             Text(
                                 text = "${strings.creditPrefix} ${PlatformHelpers.formatPkr(state.prefs.customerCredit)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.9f)
+                                style = MaterialTheme.typography.bodySmall.tabularMono(),
+                                color = Color.White.copy(alpha = 0.92f)
                             )
                         }
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(10.dp),
                             color = extras.amberBadgeBg,
                             border = BorderStroke(1.dp, extras.amberAccent),
                             modifier = Modifier
@@ -609,11 +657,10 @@ fun HomeScreen(
                         ) {
                             Text(
                                 text = "FIRST200",
-                                fontFamily = JetBrainsMonoFamily,
+                                style = MaterialTheme.typography.labelMedium.tabularMono(),
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 11.5.sp,
                                 color = extras.amberText,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                             )
                         }
                     }
@@ -633,40 +680,77 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     chips.forEach { (cat, label, tag) ->
                         val active = state.selectedCategory == cat
-                        FilterChip(
-                            selected = active,
-                            onClick = { onSelectCategory(cat) },
-                            label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.secondary,
-                                selectedLabelColor = MaterialTheme.colorScheme.onSecondary
-                            ),
-                            modifier = Modifier.testTag(tag)
+                        val chipBg by animateColorAsState(
+                            targetValue = if (active) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surface,
+                            label = "cat_bg_$tag"
                         )
+                        val chipFg by animateColorAsState(
+                            targetValue = if (active) MaterialTheme.colorScheme.onSecondary else extras.secondaryText,
+                            label = "cat_fg_$tag"
+                        )
+                        Surface(
+                            onClick = { onSelectCategory(cat) },
+                            shape = RoundedCornerShape(12.dp),
+                            color = chipBg,
+                            border = BorderStroke(1.dp, if (active) MaterialTheme.colorScheme.secondary else extras.cardBorder),
+                            modifier = Modifier
+                                .heightIn(min = 42.dp)
+                                .testTag(tag)
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (active) FontWeight.Bold else FontWeight.SemiBold,
+                                    color = chipFg
+                                )
+                            }
+                        }
                     }
-                    FilterChip(
-                        selected = state.femaleMode,
+                    val safeBg by animateColorAsState(
+                        targetValue = if (state.femaleMode) extras.roseAccent else MaterialTheme.colorScheme.surface,
+                        label = "safe_bg"
+                    )
+                    val safeFg by animateColorAsState(
+                        targetValue = if (state.femaleMode) Color.White else extras.roseAccent,
+                        label = "safe_fg"
+                    )
+                    Surface(
                         onClick = onToggleFemaleMode,
-                        leadingIcon = {
+                        shape = RoundedCornerShape(12.dp),
+                        color = safeBg,
+                        border = BorderStroke(1.dp, if (state.femaleMode) extras.roseAccent else extras.roseBorder),
+                        modifier = Modifier
+                            .heightIn(min = 42.dp)
+                            .testTag("family_safe_filter_chip")
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
+                        ) {
                             Icon(
                                 Icons.Filled.Shield,
                                 contentDescription = null,
+                                tint = safeFg,
                                 modifier = Modifier.size(15.dp)
                             )
-                        },
-                        label = { Text(strings.catSafe, style = MaterialTheme.typography.labelMedium) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = extras.roseAccent,
-                            selectedLabelColor = Color.White,
-                            selectedLeadingIconColor = Color.White
-                        ),
-                        modifier = Modifier.testTag("family_safe_filter_chip")
-                    )
+                            Spacer(Modifier.width(5.dp))
+                            Text(
+                                text = strings.catSafe,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = safeFg
+                            )
+                        }
+                    }
                 }
             }
 
@@ -675,7 +759,7 @@ fun HomeScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
+                        .padding(horizontal = 18.dp)
                         .padding(bottom = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -687,6 +771,7 @@ fun HomeScreen(
                     Text(
                         text = strings.quickBook,
                         style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
                             .clickable { onOpenBooking("ac") }
@@ -700,16 +785,15 @@ fun HomeScreen(
             val serviceRows = services.chunked(gridColumns)
             if (serviceRows.isEmpty()) {
                 item {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, extras.cardBorder),
+                    FlagshipCard(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
+                            .padding(horizontal = 18.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(24.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text("Koi matching service nahi mili", style = MaterialTheme.typography.titleSmall)
@@ -727,9 +811,9 @@ fun HomeScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .padding(bottom = 11.dp),
-                        horizontalArrangement = Arrangement.spacedBy(11.dp)
+                            .padding(horizontal = 18.dp)
+                            .padding(bottom = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         rowItems.forEach { svc ->
                             ServiceCard(
@@ -751,8 +835,8 @@ fun HomeScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        .padding(horizontal = 18.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     ActionTile(
                         title = strings.bigJobTitle,
@@ -783,20 +867,28 @@ fun HomeScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = 18.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(strings.secPlans, style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "Save 35%",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(999.dp),
+                            color = extras.emeraldTint,
+                            border = BorderStroke(1.dp, extras.emeraldBorder)
+                        ) {
+                            Text(
+                                "Save 35%",
+                                style = MaterialTheme.typography.labelSmall.tabularMono(),
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        contentPadding = PaddingValues(horizontal = 18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(CatalogData.PLANS, key = { it.id }) { plan ->
                             PlanCard(plan = plan, onSubscribe = { onSubscribePlan(plan) })
@@ -807,33 +899,38 @@ fun HomeScreen(
 
             // 10. REFER & EARN CARD
             item {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = extras.emeraldTint,
-                    border = BorderStroke(1.dp, extras.emeraldBorder),
+                FlagshipCard(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    borderColor = extras.emeraldBorder,
+                    shadowElevation = 6.dp,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                        .padding(horizontal = 18.dp, vertical = 14.dp)
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 10.dp)
+                            ) {
                                 Text(
                                     text = strings.refTitle,
                                     style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
+                                Spacer(Modifier.height(2.dp))
                                 Text(
                                     text = strings.refDesc,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = extras.secondaryText
                                 )
                             }
-                            Button(
+                            FlagshipPrimaryButton(
                                 onClick = {
                                     PlatformHelpers.copyToClipboard(context, "Referral Code", "REF200")
                                     PlatformHelpers.shareText(
@@ -841,23 +938,24 @@ fun HomeScreen(
                                         "KaamWala par ghar ke har kaam ke liye verified ustad book karein! Code REF200 use karke Rs. 200 discount payein."
                                     )
                                 },
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                                 modifier = Modifier
-                                    .heightIn(min = 42.dp)
+                                    .heightIn(min = 44.dp)
                                     .testTag("share_referral_button")
                             ) {
                                 Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(15.dp))
-                                Spacer(Modifier.width(4.dp))
+                                Spacer(Modifier.width(5.dp))
                                 Text("Share", style = MaterialTheme.typography.labelMedium)
                             }
                         }
                         if (!state.prefs.liveCustomerMode) {
-                            Spacer(Modifier.height(8.dp))
+                            Spacer(Modifier.height(10.dp))
                             OutlinedButton(
                                 onClick = onSimulateReferral,
+                                shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = 42.dp)
+                                    .heightIn(min = 44.dp)
                                     .testTag("demo_referral_bonus_button")
                             ) {
                                 Text("+ Test Friend Joined (+Rs. 200 Credit)", style = MaterialTheme.typography.labelMedium)
@@ -873,7 +971,7 @@ fun HomeScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
+                            .padding(horizontal = 18.dp)
                             .padding(bottom = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -881,13 +979,14 @@ fun HomeScreen(
                         Text(strings.secPros, style = MaterialTheme.typography.titleMedium)
                         Text(
                             "${workers.size} Verified",
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelMedium.tabularMono(),
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        contentPadding = PaddingValues(horizontal = 18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(workers, key = { it.id }) { worker ->
                             ProCard(worker = worker)
@@ -906,15 +1005,20 @@ private fun HeroPillButton(
     modifier: Modifier = Modifier,
     leadingIcon: @Composable (() -> Unit)? = null
 ) {
+    val extras = LocalKaamWalaExtras.current
+    val interactionSource = remember { MutableInteractionSource() }
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(20.dp),
-        color = Color.White.copy(alpha = 0.16f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.24f)),
-        modifier = modifier.heightIn(min = 34.dp)
+        interactionSource = interactionSource,
+        shape = RoundedCornerShape(999.dp),
+        color = extras.frostedPill,
+        border = BorderStroke(1.dp, extras.frostedPillBorder),
+        modifier = modifier
+            .tactilePress(interactionSource)
+            .heightIn(min = 36.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (leadingIcon != null) {
@@ -932,15 +1036,17 @@ private fun HeroPillButton(
 
 @Composable
 private fun HeroStatChip(text: String) {
+    val extras = LocalKaamWalaExtras.current
     Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = Color.White.copy(alpha = 0.14f)
+        shape = RoundedCornerShape(10.dp),
+        color = extras.frostedPill,
+        border = BorderStroke(1.dp, extras.frostedPillBorder)
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.tabularMono(),
             color = Color(0xFFECFDF5),
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
         )
     }
 }
@@ -953,19 +1059,28 @@ private fun ServiceCard(
     modifier: Modifier = Modifier
 ) {
     val extras = LocalKaamWalaExtras.current
-    Card(
+    val interactionSource = remember { MutableInteractionSource() }
+    Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        interactionSource = interactionSource,
+        shape = KaamWalaCardShape,
+        color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, extras.cardBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = modifier.testTag("service_card_${service.id}")
+        modifier = modifier
+            .tactilePress(interactionSource)
+            .shadow(
+                elevation = 8.dp,
+                shape = KaamWalaCardShape,
+                ambientColor = extras.ambientShadow,
+                spotColor = extras.ambientShadow
+            )
+            .testTag("service_card_${service.id}")
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(104.dp)
+                    .height(106.dp)
             ) {
                 NetworkImageWithFallback(
                     url = service.imageUrl,
@@ -982,42 +1097,43 @@ private fun ServiceCard(
                         )
                 )
                 Surface(
-                    shape = RoundedCornerShape(7.dp),
-                    color = extras.darkSurface.copy(alpha = 0.80f),
+                    shape = RoundedCornerShape(8.dp),
+                    color = extras.darkSurface.copy(alpha = 0.82f),
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(7.dp)
+                        .padding(8.dp)
                 ) {
                     Text(
                         text = service.badge,
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                     )
                 }
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
+                    shape = RoundedCornerShape(7.dp),
                     color = extras.emeraldTint,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(6.dp)
+                        .padding(7.dp)
                 ) {
                     Text(
                         text = service.eta,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.tabularMono(),
                         color = extras.heroStart,
                         fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
                     )
                 }
             }
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(modifier = Modifier.padding(12.dp)) {
                 Text(
                     text = service.localizedName(lang),
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Spacer(Modifier.height(2.dp))
                 Text(
                     text = service.desc,
                     style = MaterialTheme.typography.bodySmall,
@@ -1025,7 +1141,7 @@ private fun ServiceCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1033,18 +1149,20 @@ private fun ServiceCard(
                 ) {
                     Text(
                         text = PlatformHelpers.formatPkr(service.fee),
-                        style = MaterialTheme.typography.labelLarge,
+                        style = MaterialTheme.typography.labelLarge.tabularMono(),
+                        fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(9.dp),
                         color = MaterialTheme.colorScheme.primary
                     ) {
                         Text(
                             text = "Book",
                             style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 5.dp)
                         )
                     }
                 }
@@ -1062,18 +1180,28 @@ private fun ActionTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val extras = LocalKaamWalaExtras.current
+    val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
-            .heightIn(min = 96.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .tactilePress(interactionSource)
+            .heightIn(min = 104.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = KaamWalaCardShape,
+                ambientColor = extras.ambientShadow,
+                spotColor = extras.ambientShadow
+            )
+            .clip(KaamWalaCardShape)
             .background(Brush.linearGradient(gradient))
-            .clickable(onClick = onClick)
-            .padding(12.dp)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .padding(14.dp)
     ) {
         Column(verticalArrangement = Arrangement.SpaceBetween) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
-            Spacer(Modifier.height(8.dp))
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(23.dp))
+            Spacer(Modifier.height(10.dp))
             Text(title, style = MaterialTheme.typography.titleSmall, color = Color.White)
+            Spacer(Modifier.height(2.dp))
             Text(desc, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.85f))
         }
     }
@@ -1084,27 +1212,35 @@ private fun PlanCard(plan: CarePlan, onSubscribe: () -> Unit) {
     val extras = LocalKaamWalaExtras.current
     Box(
         modifier = Modifier
-            .width(210.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .width(220.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = KaamWalaCardShape,
+                ambientColor = extras.ambientShadow,
+                spotColor = extras.ambientShadow
+            )
+            .clip(KaamWalaCardShape)
             .background(Brush.linearGradient(listOf(extras.darkSurface, extras.darkSurfaceAlt)))
-            .padding(14.dp)
+            .border(1.dp, Color.White.copy(alpha = 0.08f), KaamWalaCardShape)
+            .padding(16.dp)
     ) {
         Column {
             Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
             ) {
                 Text(
                     text = plan.tag,
                     style = MaterialTheme.typography.labelSmall,
                     color = extras.emeraldMint,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                 )
             }
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
             Text(plan.title, style = MaterialTheme.typography.titleSmall, color = Color.White)
+            Spacer(Modifier.height(2.dp))
             Text(plan.desc, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.78f))
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1112,14 +1248,16 @@ private fun PlanCard(plan: CarePlan, onSubscribe: () -> Unit) {
             ) {
                 Text(
                     text = "${PlatformHelpers.formatPkr(plan.price)}/mo",
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.tabularMono(),
+                    fontWeight = FontWeight.ExtraBold,
                     color = extras.emeraldMint
                 )
                 FilledTonalButton(
                     onClick = onSubscribe,
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     modifier = Modifier
-                        .heightIn(min = 36.dp)
+                        .heightIn(min = 40.dp)
                         .testTag("subscribe_plan_${plan.id}")
                 ) {
                     Text("Activate", style = MaterialTheme.typography.labelSmall)
@@ -1132,25 +1270,25 @@ private fun PlanCard(plan: CarePlan, onSubscribe: () -> Unit) {
 @Composable
 private fun ProCard(worker: WorkerEntity) {
     val extras = LocalKaamWalaExtras.current
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, extras.cardBorder),
-        modifier = Modifier.width(152.dp)
+    FlagshipCard(
+        shadowElevation = 6.dp,
+        modifier = Modifier.width(158.dp)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             NetworkImageWithFallback(
                 url = worker.avatarUrl,
                 contentDescription = worker.name,
                 modifier = Modifier
-                    .size(54.dp)
+                    .size(56.dp)
                     .clip(CircleShape)
                     .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
             )
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = worker.name,
                 style = MaterialTheme.typography.titleSmall,
@@ -1167,10 +1305,14 @@ private fun ProCard(worker: WorkerEntity) {
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Star, contentDescription = null, tint = extras.amberAccent, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(2.dp))
-                Text("${worker.rating} • ${worker.jobsCount}", style = MaterialTheme.typography.labelSmall)
+                Spacer(Modifier.width(3.dp))
+                Text(
+                    "${worker.rating} • ${worker.jobsCount}",
+                    style = MaterialTheme.typography.labelSmall.tabularMono(),
+                    fontWeight = FontWeight.Bold
+                )
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(5.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     Icons.Filled.VerifiedUser,
@@ -1182,6 +1324,7 @@ private fun ProCard(worker: WorkerEntity) {
                 Text(
                     text = if (worker.femaleSafe) "Family-Safe" else "CNIC Verified",
                     style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
                     color = if (worker.femaleSafe) extras.roseAccent else MaterialTheme.colorScheme.primary
                 )
             }

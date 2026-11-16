@@ -15,6 +15,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -521,5 +522,171 @@ class ExampleRobolectricTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("admin_approve_worker_worker_99").performClick()
         assertEquals("worker_99", approvedUid)
+    }
+
+    @Test
+    fun `admin screen shows per-worker strike count suspended pill and clear button`() {
+        val suspendedWorker = UserProfileEntity(
+            userId = "worker_struck_1",
+            role = "WORKER",
+            verificationStatus = "APPROVED",
+            fullName = "Ustad Shoaib",
+            phone = "0300-3334445",
+            city = "Lahore",
+            skill = "Plumbing",
+            strikes = 3
+        )
+        var clearedUid = ""
+        composeTestRule.setContent {
+            KaamWalaTheme {
+                AdminScreen(
+                    state = KaamWalaUiState(
+                        isAdminUser = true,
+                        allMarketplaceProfiles = listOf(suspendedWorker)
+                    ),
+                    onOpenSettings = {},
+                    onLockStaff = {},
+                    onResetStrikes = {},
+                    onApproveTopUp = {},
+                    onRejectTopUp = {},
+                    onApproveToolLoan = {},
+                    onCollectQist = {},
+                    onActivateB2b = {},
+                    onAddWorker = { _, _, _, _ -> },
+                    onClearDemoOrders = {},
+                    onResetAllDemo = {},
+                    onClearWorkerStrikes = { clearedUid = it.userId }
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNode(hasScrollAction()).performScrollToNode(hasTestTag("admin_clear_strikes_worker_struck_1"))
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("SUSPENDED").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("admin_clear_strikes_worker_struck_1").performClick()
+        assertEquals("worker_struck_1", clearedUid)
+    }
+
+    @Test
+    fun `worker hisab excludes completed jobs assigned to other workers`() {
+        val myCompletedJob = BookingEntity(
+            id = "KW-MINE",
+            serviceId = "ac",
+            serviceName = "AC & Cooling",
+            fee = 1000,
+            total = 1000,
+            leadFeePaid = 50,
+            commissionAmount = 100,
+            area = "Gulberg",
+            customerName = "Ali",
+            customerPhone = "03001111111",
+            address = "Gulberg 3",
+            otp = "1234",
+            status = "COMPLETED",
+            workerId = "worker_uid_me",
+            assignedWorkerName = "Ustad Tariq"
+        )
+        val otherWorkersCompletedJob = BookingEntity(
+            id = "KW-OTHER",
+            serviceId = "plumb",
+            serviceName = "Plumbing",
+            fee = 5000,
+            total = 5000,
+            leadFeePaid = 100,
+            commissionAmount = 500,
+            area = "DHA Phase 1-8",
+            customerName = "Zara",
+            customerPhone = "03002222222",
+            address = "DHA Phase 5",
+            otp = "5678",
+            status = "COMPLETED",
+            workerId = "worker_uid_other",
+            assignedWorkerName = "Ustad Bilal Ahmed"
+        )
+        composeTestRule.setContent {
+            KaamWalaTheme {
+                WorkerScreen(
+                    state = KaamWalaUiState(
+                        currentUserId = "worker_uid_me",
+                        userProfile = UserProfileEntity(
+                            userId = "worker_uid_me",
+                            role = "WORKER",
+                            verificationStatus = "APPROVED",
+                            fullName = "Ustad Tariq"
+                        ),
+                        bookings = listOf(myCompletedJob, otherWorkersCompletedJob),
+                        workerSubTab = WorkerSubTab.HISAB
+                    ),
+                    onToggleOnline = {},
+                    onLockStaff = {},
+                    onSelectWorker = {},
+                    onOpenTopUp = {},
+                    onSelectSubTab = {},
+                    onAcceptJob = {},
+                    onOpenOtpVerify = {},
+                    onAttachProof = { _, _ -> },
+                    onOpenParts = {},
+                    onOpenChat = {},
+                    onCompleteJob = {},
+                    onSubmitBid = { _, _, _ -> },
+                    onApplyToolLoan = {},
+                    onShowToast = {}
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag("worker_hisab_ledger_card").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Rs. 1,000").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Rs. 850").assertIsDisplayed()
+    }
+
+    @Test
+    fun `missing cross device voice file falls back to whatsapp prompt on orders and worker screens`() {
+        val bookingWithRemoteVoice = BookingEntity(
+            id = "KW-VOICE-1",
+            serviceId = "ac",
+            serviceName = "AC & Cooling",
+            fee = 500,
+            total = 500,
+            area = "Johar Town",
+            customerName = "Usman",
+            customerPhone = "03001234567",
+            address = "Johar Town C",
+            voiceNotePath = "/nonexistent/sender/phone/voice_kw1.m4a",
+            otp = "9911",
+            status = "PENDING"
+        )
+        composeTestRule.setContent {
+            KaamWalaTheme {
+                WorkerScreen(
+                    state = KaamWalaUiState(
+                        bookings = listOf(bookingWithRemoteVoice),
+                        workerSubTab = WorkerSubTab.JOBS
+                    ),
+                    onToggleOnline = {},
+                    onLockStaff = {},
+                    onSelectWorker = {},
+                    onOpenTopUp = {},
+                    onSelectSubTab = {},
+                    onAcceptJob = {},
+                    onOpenOtpVerify = {},
+                    onAttachProof = { _, _ -> },
+                    onOpenParts = {},
+                    onOpenChat = {},
+                    onCompleteJob = {},
+                    onSubmitBid = { _, _, _ -> },
+                    onApplyToolLoan = {},
+                    onShowToast = {}
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasTestTag("worker_missing_voice_KW-VOICE-1"))
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("worker_missing_voice_KW-VOICE-1").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Voice Note (Recorded on sender's phone — Ask on WhatsApp)").assertIsDisplayed()
     }
 }

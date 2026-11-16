@@ -231,6 +231,10 @@
         "strikes": { "type": "integer" },
         "rating": { "type": "number" },
         "jobsCompleted": { "type": "integer" },
+        "lastRefundOrderId": { "type": "string" },
+        "lastStrikeOrderId": { "type": "string" },
+        "lastRatedOrderId": { "type": "string" },
+        "lastCompletedOrderId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },

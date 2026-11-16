@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.example.BuildConfig
 import com.example.ui.theme.JetBrainsMonoFamily
 import com.example.ui.theme.LocalKaamWalaExtras
+import com.example.ui.theme.tabularMono
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
@@ -120,8 +121,8 @@ fun ServicePinMapPicker(
     }
 
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, extras.emeraldBorder),
         modifier = modifier.fillMaxWidth()
     ) {
@@ -129,7 +130,8 @@ fun ServicePinMapPicker(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .background(extras.inputFill)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -152,8 +154,7 @@ fun ServicePinMapPicker(
                         )
                         Text(
                             text = KaamWalaGeo.formatLatLng(currentPin.latitude, currentPin.longitude),
-                            fontFamily = JetBrainsMonoFamily,
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.tabularMono(),
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -279,8 +280,8 @@ fun OrderLiveTrackingMapCard(
     }
 
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, extras.emeraldBorder),
         modifier = modifier
             .fillMaxWidth()
@@ -291,7 +292,7 @@ fun OrderLiveTrackingMapCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(extras.heroStart)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -304,7 +305,7 @@ fun OrderLiveTrackingMapCard(
                     )
                     Text(
                         text = "$area • ${if (hasLiveWorkerGps) "Live Worker GPS" else "Estimated Route"} (${KaamWalaGeo.formatLatLng(workerLatLng.latitude, workerLatLng.longitude)})",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.tabularMono(),
                         color = Color(0xFFA7F3D0)
                     )
                 }

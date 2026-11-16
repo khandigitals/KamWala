@@ -27,6 +27,8 @@ import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.OrdersScreen
 import com.example.ui.screens.WorkerScreen
 import com.example.ui.sheets.*
+import com.example.util.PlatformHelpers
+import kotlinx.coroutines.delay
 
 @Composable
 fun KaamWalaApp(
@@ -40,6 +42,50 @@ fun KaamWalaApp(
     // Back handling when on secondary tabs
     BackHandler(enabled = state.currentTab != AppTab.HOME) {
         viewModel.selectTab(AppTab.HOME)
+    }
+
+    val knownPendingOrderIds = remember(state.currentUserId) { mutableSetOf<String>() }
+    var alertArmed by remember(state.currentUserId) { mutableStateOf(false) }
+
+    LaunchedEffect(state.currentUserId, state.profileLoaded) {
+        if (state.profileLoaded) {
+            delay(1200)
+            alertArmed = true
+        } else {
+            alertArmed = false
+        }
+    }
+
+    LaunchedEffect(
+        state.bookings,
+        state.profileLoaded,
+        alertArmed,
+        state.userProfile,
+        state.prefs.workerOnline,
+        state.isStaffUnlocked,
+        state.prefs.liveCustomerMode
+    ) {
+        val currentPendingIds = state.bookings
+            .filter { !it.isDemo && it.status == "PENDING" }
+            .map { it.id }
+            .toSet()
+        if (!state.profileLoaded || !alertArmed) {
+            knownPendingOrderIds.addAll(currentPendingIds)
+            return@LaunchedEffect
+        }
+        val newlyArrived = currentPendingIds.filter { it !in knownPendingOrderIds }
+        knownPendingOrderIds.addAll(currentPendingIds)
+
+        val profile = state.userProfile
+        val canReceiveWorkerAlerts = if (profile?.role == "WORKER") {
+            profile.verificationStatus == "APPROVED" && profile.isOnline && profile.strikes < 3
+        } else {
+            state.prefs.workerOnline && state.isStaffUnlocked && !state.prefs.liveCustomerMode
+        }
+        if (newlyArrived.isNotEmpty() && canReceiveWorkerAlerts) {
+            PlatformHelpers.playAlertTone()
+            viewModel.showToast("Nayi Job Aayi Hai (${newlyArrived.first()})! Worker tab check karein.")
+        }
     }
 
     LaunchedEffect(state.toastMessage) {
@@ -72,27 +118,48 @@ fun KaamWalaApp(
 
         Scaffold(
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+            containerColor = MaterialTheme.colorScheme.background,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
                 if (!useRail) {
-                    NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        windowInsets = WindowInsets.navigationBars
-                    ) {
-                        navItems.forEach { (tab, label, icons) ->
-                            val selected = state.currentTab == tab
-                            NavigationBarItem(
-                                selected = selected,
-                                onClick = { viewModel.selectTab(tab) },
-                                icon = {
-                                    Icon(
-                                        imageVector = if (selected) icons.first else icons.second,
-                                        contentDescription = label
-                                    )
-                                },
-                                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
-                                modifier = Modifier.testTag("nav_tab_${tab.name.lowercase()}")
-                            )
+                    Column {
+                        HorizontalDivider(
+                            thickness = 1.dp,
+                            color = com.example.ui.theme.LocalKaamWalaExtras.current.cardBorder
+                        )
+                        NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 0.dp,
+                            windowInsets = WindowInsets.navigationBars
+                        ) {
+                            navItems.forEach { (tab, label, icons) ->
+                                val selected = state.currentTab == tab
+                                NavigationBarItem(
+                                    selected = selected,
+                                    onClick = { viewModel.selectTab(tab) },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                        unselectedIconColor = com.example.ui.theme.LocalKaamWalaExtras.current.mutedText,
+                                        unselectedTextColor = com.example.ui.theme.LocalKaamWalaExtras.current.mutedText
+                                    ),
+                                    icon = {
+                                        Icon(
+                                            imageVector = if (selected) icons.first else icons.second,
+                                            contentDescription = label
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            label,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.ExtraBold else androidx.compose.ui.text.font.FontWeight.SemiBold
+                                        )
+                                    },
+                                    modifier = Modifier.testTag("nav_tab_${tab.name.lowercase()}")
+                                )
+                            }
                         }
                     }
                 }
@@ -104,25 +171,44 @@ fun KaamWalaApp(
                     .padding(innerPadding)
             ) {
                 if (useRail) {
-                    NavigationRail(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        windowInsets = WindowInsets.safeDrawing
-                    ) {
-                        navItems.forEach { (tab, label, icons) ->
-                            val selected = state.currentTab == tab
-                            NavigationRailItem(
-                                selected = selected,
-                                onClick = { viewModel.selectTab(tab) },
-                                icon = {
-                                    Icon(
-                                        imageVector = if (selected) icons.first else icons.second,
-                                        contentDescription = label
-                                    )
-                                },
-                                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
-                                modifier = Modifier.testTag("rail_tab_${tab.name.lowercase()}")
-                            )
+                    Row {
+                        NavigationRail(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            windowInsets = WindowInsets.safeDrawing
+                        ) {
+                            navItems.forEach { (tab, label, icons) ->
+                                val selected = state.currentTab == tab
+                                NavigationRailItem(
+                                    selected = selected,
+                                    onClick = { viewModel.selectTab(tab) },
+                                    colors = NavigationRailItemDefaults.colors(
+                                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                        unselectedIconColor = com.example.ui.theme.LocalKaamWalaExtras.current.mutedText,
+                                        unselectedTextColor = com.example.ui.theme.LocalKaamWalaExtras.current.mutedText
+                                    ),
+                                    icon = {
+                                        Icon(
+                                            imageVector = if (selected) icons.first else icons.second,
+                                            contentDescription = label
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            label,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.ExtraBold else androidx.compose.ui.text.font.FontWeight.SemiBold
+                                        )
+                                    },
+                                    modifier = Modifier.testTag("rail_tab_${tab.name.lowercase()}")
+                                )
+                            }
                         }
+                        VerticalDivider(
+                            thickness = 1.dp,
+                            color = com.example.ui.theme.LocalKaamWalaExtras.current.cardBorder
+                        )
                     }
                 }
 
@@ -201,7 +287,8 @@ fun KaamWalaApp(
                             onApproveWorker = { viewModel.approveWorkerProfile(it) },
                             onRejectWorker = { viewModel.rejectWorkerProfile(it) },
                             onVerifyPaymentSettled = { viewModel.verifyDigitalOrderPayment(it) },
-                            onOpenWithdrawDialog = { viewModel.openAdminWithdrawDialog() }
+                            onOpenWithdrawDialog = { viewModel.openAdminWithdrawDialog() },
+                            onClearWorkerStrikes = { viewModel.clearWorkerStrikes(it) }
                         )
                     }
                 }

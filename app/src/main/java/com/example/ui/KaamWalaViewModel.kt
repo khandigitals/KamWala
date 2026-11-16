@@ -152,7 +152,14 @@ data class KaamWalaUiState(
         get() = if (prefs.liveCustomerMode) bigJobs.filter { !it.isDemo } else bigJobs
 
     val totalGmv: Int
-        get() = bookings.filter { it.status != "CANCELLED" }.sumOf { it.total } + activePlans.sumOf { it.price }
+        get() {
+            val ordersGmv = bookings.filter { it.status != "CANCELLED" }.sumOf { it.total }
+            val carePlanGmv = maxOf(
+                activePlans.sumOf { it.price },
+                adminLedger.filter { it.entryType == "CARE_PLAN" }.sumOf { it.amount }
+            )
+            return ordersGmv + carePlanGmv
+        }
 
     val totalOrdersAndBidsCount: Int
         get() = bookings.size + bigJobs.size
@@ -180,6 +187,9 @@ private data class MarketplaceDataSlice(
     val marketplaceBookings: List<BookingEntity> = emptyList(),
     val marketplaceTopUps: List<TopUpRequestEntity> = emptyList(),
     val marketplaceLoans: List<ToolLoanEntity> = emptyList(),
+    val marketplaceBigJobs: List<BigJobEntity> = emptyList(),
+    val marketplaceBids: List<BidEntity> = emptyList(),
+    val marketplaceB2bLeads: List<B2bLeadEntity> = emptyList(),
     val adminLedger: List<AdminLedgerEntity> = emptyList(),
     val sharedChatMessages: List<ChatMessageEntity> = emptyList()
 )
@@ -308,6 +318,27 @@ class KaamWalaViewModel(
                 }
             }
 
+    private val marketplaceBigJobsFlow: Flow<List<BigJobEntity>> =
+        repository.observeMarketplaceBigJobs(currentUserId, isAdminUser).safeCatch(emptyList())
+
+    private val marketplaceBidsFlow: Flow<List<BidEntity>> =
+        marketplaceBigJobsFlow
+            .map { jobs -> jobs.filter { !it.isDemo && it.customerId.isNotBlank() } }
+            .distinctUntilChanged()
+            .flatMapLatest { jobs ->
+                if (jobs.isEmpty()) {
+                    flowOf(emptyList())
+                } else {
+                    combine(
+                        jobs.map { job ->
+                            repository.observeMarketplaceBidsForJob(job, currentUserId, isAdminUser).safeCatch(emptyList())
+                        }
+                    ) { arrays ->
+                        arrays.flatMap { it }.distinctBy { it.id }.sortedByDescending { it.createdAt }
+                    }
+                }
+            }
+
     private val marketplaceCoreFlow = combine(
         repository.observeUserProfile(currentUserId).safeCatch(true to null),
         repository.observeMarketplaceConfig(currentUserId).safeCatch(null),
@@ -341,6 +372,20 @@ class KaamWalaViewModel(
             marketplaceLoans = extra[1] as List<ToolLoanEntity>,
             adminLedger = extra[2] as List<AdminLedgerEntity>,
             sharedChatMessages = extra[3] as List<ChatMessageEntity>
+        )
+    }.combine(
+        combine(
+            marketplaceBigJobsFlow,
+            marketplaceBidsFlow,
+            repository.observeMarketplaceB2b(currentUserId, isAdminUser).safeCatch(emptyList())
+        ) { bigJobs, bids, b2bLeads ->
+            Triple(bigJobs, bids, b2bLeads)
+        }
+    ) { core, sharedExpansion ->
+        core.copy(
+            marketplaceBigJobs = sharedExpansion.first,
+            marketplaceBids = sharedExpansion.second,
+            marketplaceB2bLeads = sharedExpansion.third
         )
     }
 
@@ -400,6 +445,21 @@ class KaamWalaViewModel(
             .values
             .sortedBy { it.timestamp }
 
+        val mergedBigJobs = (mkt.marketplaceBigJobs + ws.bigJobs)
+            .associateBy { it.id }
+            .values
+            .sortedByDescending { it.createdAt }
+
+        val mergedBids = (mkt.marketplaceBids + ws.bids)
+            .associateBy { it.id }
+            .values
+            .sortedByDescending { it.createdAt }
+
+        val mergedB2bLeads = (mkt.marketplaceB2bLeads + ws.b2bLeads)
+            .associateBy { it.id }
+            .values
+            .sortedByDescending { it.createdAt }
+
         KaamWalaUiState(
             currentUserId = currentUserId,
             currentUserName = resolvedUserName,
@@ -421,9 +481,9 @@ class KaamWalaViewModel(
             workers = mergedWorkers,
             allMarketplaceProfiles = mkt.allProfiles,
             adminLedger = mkt.adminLedger,
-            bigJobs = ws.bigJobs,
-            bids = ws.bids,
-            b2bLeads = ws.b2bLeads,
+            bigJobs = mergedBigJobs,
+            bids = mergedBids,
+            b2bLeads = mergedB2bLeads,
             topUpRequests = mergedTopUps,
             toolLoans = mergedLoans,
             chatMessages = mergedChats,
@@ -798,7 +858,8 @@ class KaamWalaViewModel(
     fun submitBigJob(category: String, area: String, desc: String, budget: Int) {
         launchSafely {
             val job = BigJobEntity(
-                id = "BJ-${Random.nextInt(200, 999)}",
+                id = "BJ-${Random.nextInt(200, 999)}-${System.currentTimeMillis() % 100}",
+                customerId = currentUserId,
                 category = category,
                 area = area.trim(),
                 description = desc.trim(),
@@ -806,26 +867,37 @@ class KaamWalaViewModel(
                 status = "OPEN",
                 isDemo = false
             )
-            repository.insertBigJob(job)
+            repository.insertBigJob(job, publishToMarketplace = true)
             uiControl.value = uiControl.value.copy(
                 showBigJobDialog = false,
                 currentTab = AppTab.ORDERS,
-                toastMessage = "Big Job posted! Workers can now place bids."
+                toastMessage = "Big Job posted! Verified Karegars ab bid de sakein ge."
             )
         }
     }
 
     fun submitWorkerBid(bigJob: BigJobEntity, amount: Int, note: String) {
-        val workerName = uiState.value.effectiveWorkerName
+        val state = uiState.value
+        val isShared = !bigJob.isDemo && bigJob.customerId.isNotBlank()
+        if (isShared && !isAdminUser &&
+            (state.userProfile?.role != "WORKER" || state.userProfile?.verificationStatus != "APPROVED")
+        ) {
+            showToast("Sirf Admin-approved Karegar hi shared Big Job par bid de sakte hain.")
+            return
+        }
+        val workerName = state.effectiveWorkerName
         launchSafely {
             repository.insertBid(
-                BidEntity(
+                bid = BidEntity(
                     id = "BID-${System.currentTimeMillis() % 100000}",
                     bigJobId = bigJob.id,
+                    customerId = bigJob.customerId,
+                    workerUid = if (isShared) currentUserId else "",
                     workerName = workerName,
                     amount = amount,
                     note = note.trim()
-                )
+                ),
+                isSharedBigJob = isShared
             )
             showToast("Bid Rs. $amount submitted by $workerName!")
         }
@@ -833,7 +905,7 @@ class KaamWalaViewModel(
 
     fun acceptBid(bigJob: BigJobEntity, bid: BidEntity) {
         launchSafely {
-            repository.acceptBid(bigJob.id, bid.id)
+            repository.acceptBid(bigJob, bid.id)
             showToast("Bid from ${bid.workerName} accepted!")
         }
     }
@@ -849,14 +921,16 @@ class KaamWalaViewModel(
     fun submitB2bLead(bizName: String, phone: String, pkg: String) {
         launchSafely {
             repository.insertB2bLead(
-                B2bLeadEntity(
-                    id = "B2B-${Random.nextInt(100, 999)}",
+                lead = B2bLeadEntity(
+                    id = "B2B-${Random.nextInt(100, 999)}-${System.currentTimeMillis() % 100}",
+                    submittedByUid = currentUserId,
                     businessName = bizName.trim(),
                     phone = phone.trim(),
                     packageName = pkg,
                     status = "NEW",
                     isDemo = false
-                )
+                ),
+                publishToMarketplace = true
             )
             uiControl.value = uiControl.value.copy(
                 showB2bDialog = false,
@@ -867,7 +941,7 @@ class KaamWalaViewModel(
 
     fun activateB2bLead(lead: B2bLeadEntity) {
         launchSafely {
-            repository.activateB2bLead(lead.id)
+            repository.activateB2bLead(lead)
             showToast("${lead.businessName} marked ACTIVE")
         }
     }
@@ -959,13 +1033,7 @@ class KaamWalaViewModel(
 
     fun submitRating(booking: BookingEntity, rating: Int, reviewNote: String) {
         launchSafely {
-            repository.updateOrderFields(
-                booking,
-                mapOf(
-                    "rating" to rating.toLong(),
-                    "reviewNote" to reviewNote.trim().take(500)
-                )
-            )
+            repository.submitOrderRating(booking, rating, reviewNote)
             uiControl.value = uiControl.value.copy(
                 activeRateBooking = null,
                 toastMessage = "Shukriya! $rating-star rating saved."
@@ -979,7 +1047,7 @@ class KaamWalaViewModel(
             repository.reportStrike(booking, currentStrikes)
             uiControl.value = uiControl.value.copy(
                 activeRateBooking = null,
-                toastMessage = "Quality strike logged for review."
+                toastMessage = "Quality strike logged on worker profile."
             )
         }
     }
@@ -1277,7 +1345,14 @@ class KaamWalaViewModel(
     fun resetStrikes() {
         launchSafely {
             repository.updateWorkspaceFields(mapOf("workerStrikes" to 0L))
-            showToast("Strikes cleared & worker unsuspended.")
+            showToast("Demo strikes cleared & worker unsuspended.")
+        }
+    }
+
+    fun clearWorkerStrikes(profile: UserProfileEntity) {
+        launchSafely {
+            repository.clearWorkerStrikes(profile.userId)
+            showToast("${profile.fullName} ke strikes clear kar diye gaye (0/3).")
         }
     }
 

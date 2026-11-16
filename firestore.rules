@@ -104,9 +104,9 @@ service cloud.firestore {
              data.workerLat is number && data.workerLat >= -90 && data.workerLat <= 90 &&
              data.workerLng is number && data.workerLng >= -180 && data.workerLng <= 180 &&
              data.note is string && data.note.size() <= 1000 &&
-             data.photoUri is string && data.photoUri.size() <= 1000 &&
+             data.photoUri is string && data.photoUri.size() <= 65536 &&
              data.voiceNotePath is string && data.voiceNotePath.size() <= 500 &&
-             data.proofPhotoUri is string && data.proofPhotoUri.size() <= 1000 &&
+             data.proofPhotoUri is string && data.proofPhotoUri.size() <= 65536 &&
              data.otp is string && data.otp.size() >= 4 && data.otp.size() <= 10 &&
              data.status in ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] &&
              data.assignedWorkerName is string && data.assignedWorkerName.size() <= 100 &&
@@ -129,7 +129,7 @@ service cloud.firestore {
              data.longitude is number && data.longitude >= -180 && data.longitude <= 180 &&
              data.workerLat is number && data.workerLat >= -90 && data.workerLat <= 90 &&
              data.workerLng is number && data.workerLng >= -180 && data.workerLng <= 180 &&
-             data.proofPhotoUri is string && data.proofPhotoUri.size() <= 1000 &&
+             data.proofPhotoUri is string && data.proofPhotoUri.size() <= 65536 &&
              data.status in ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] &&
              data.assignedWorkerName is string && data.assignedWorkerName.size() <= 100 &&
              data.assignedWorkerPhone is string && data.assignedWorkerPhone.size() <= 40 &&
@@ -153,7 +153,7 @@ service cloud.firestore {
              data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 100 &&
              data.customerPhone is string && data.customerPhone.size() >= 1 && data.customerPhone.size() <= 40 &&
              data.note is string && data.note.size() <= 1000 &&
-             data.photoUri is string && data.photoUri.size() <= 1000 &&
+             data.photoUri is string && data.photoUri.size() <= 65536 &&
              data.voiceNotePath is string && data.voiceNotePath.size() <= 500 &&
              data.otp is string && data.otp.size() >= 4 && data.otp.size() <= 10 &&
              data.paymentMethod in ['CASH', 'JAZZCASH', 'EASYPAISA', 'RAAST'] &&
@@ -180,7 +180,11 @@ service cloud.firestore {
              data.totalEarnings is int && data.totalEarnings >= 0 && data.totalEarnings <= 100000000 &&
              data.strikes is int && data.strikes >= 0 && data.strikes <= 3 &&
              data.rating is number && data.rating >= 0 && data.rating <= 5 &&
-             data.jobsCompleted is int && data.jobsCompleted >= 0 && data.jobsCompleted <= 1000000;
+             data.jobsCompleted is int && data.jobsCompleted >= 0 && data.jobsCompleted <= 1000000 &&
+             (!('lastRefundOrderId' in data) || isValidId(data.lastRefundOrderId)) &&
+             (!('lastStrikeOrderId' in data) || isValidId(data.lastStrikeOrderId)) &&
+             (!('lastRatedOrderId' in data) || isValidId(data.lastRatedOrderId)) &&
+             (!('lastCompletedOrderId' in data) || isValidId(data.lastCompletedOrderId));
     }
 
     function isValidMarketplaceChatMessage(data) {
@@ -198,6 +202,56 @@ service cloud.firestore {
       return data.customerId == order.customerId &&
              data.workerId == order.workerId &&
              (request.auth.uid == order.customerId || request.auth.uid == order.workerId || isAdmin());
+    }
+
+    function isWorkerCompletionProfileUpdate(orderId) {
+      let beforeOrder = get(/databases/$(database)/documents/marketplaceOrders/$(orderId)).data;
+      let afterOrder = getAfter(/databases/$(database)/documents/marketplaceOrders/$(orderId)).data;
+      return (!('lastCompletedOrderId' in existing()) || orderId != existing().lastCompletedOrderId) &&
+             beforeOrder.workerId == request.auth.uid &&
+             beforeOrder.status == 'IN_PROGRESS' &&
+             afterOrder.status == 'COMPLETED' &&
+             incoming().jobsCompleted == existing().jobsCompleted + 1 &&
+             incoming().totalEarnings >= existing().totalEarnings &&
+             incoming().totalEarnings <= existing().totalEarnings + afterOrder.total;
+    }
+
+    function isCustomerCancelRefundProfileUpdate(profileId, orderId) {
+      let beforeOrder = get(/databases/$(database)/documents/marketplaceOrders/$(orderId)).data;
+      let afterOrder = getAfter(/databases/$(database)/documents/marketplaceOrders/$(orderId)).data;
+      return (!('lastRefundOrderId' in existing()) || orderId != existing().lastRefundOrderId) &&
+             beforeOrder.customerId == request.auth.uid &&
+             beforeOrder.workerId == profileId &&
+             beforeOrder.status == 'ACCEPTED' &&
+             beforeOrder.leadFeePaid > 0 &&
+             afterOrder.status == 'CANCELLED' &&
+             incoming().walletBalance == existing().walletBalance + beforeOrder.leadFeePaid;
+    }
+
+    function isCustomerStrikeProfileUpdate(profileId, orderId) {
+      let beforeOrder = get(/databases/$(database)/documents/marketplaceOrders/$(orderId)).data;
+      let afterOrder = getAfter(/databases/$(database)/documents/marketplaceOrders/$(orderId)).data;
+      return (!('lastStrikeOrderId' in existing()) || orderId != existing().lastStrikeOrderId) &&
+             beforeOrder.customerId == request.auth.uid &&
+             beforeOrder.workerId == profileId &&
+             beforeOrder.status == 'COMPLETED' &&
+             !beforeOrder.reviewNote.matches('.*\\[STRIKE LOGGED\\].*') &&
+             afterOrder.reviewNote.matches('.*\\[STRIKE LOGGED\\].*') &&
+             incoming().strikes == (existing().strikes < 3 ? existing().strikes + 1 : 3);
+    }
+
+    function isCustomerRatingProfileUpdate(profileId, orderId) {
+      let beforeOrder = get(/databases/$(database)/documents/marketplaceOrders/$(orderId)).data;
+      let afterOrder = getAfter(/databases/$(database)/documents/marketplaceOrders/$(orderId)).data;
+      return (!('lastRatedOrderId' in existing()) || orderId != existing().lastRatedOrderId) &&
+             beforeOrder.customerId == request.auth.uid &&
+             beforeOrder.workerId == profileId &&
+             beforeOrder.status == 'COMPLETED' &&
+             beforeOrder.rating == 0 &&
+             afterOrder.rating >= 1 &&
+             afterOrder.rating <= 5 &&
+             incoming().rating >= 1 &&
+             incoming().rating <= 5;
     }
 
     function isValidWorker(data) {
@@ -374,13 +428,19 @@ service cloud.firestore {
 
       allow update: if isValidId(profileId) &&
                        isSignedIn() &&
-                       isValidMarketplaceProfile(incoming(), existing().userId) &&
                        isValidTimestampsOnUpdate(incoming()) &&
                        incoming().userId == existing().userId &&
+                       isValidMarketplaceProfile(incoming(), existing().userId) &&
                        (
                          isAdmin() ||
                          (
                            isOwner(profileId) &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'role', 'verificationStatus', 'fullName', 'phone', 'email',
+                             'city', 'area', 'address', 'skill', 'experienceYears', 'cnic',
+                             'payoutAccount', 'femaleSafe', 'isOnline', 'walletBalance',
+                             'jobsCompleted', 'updatedAt'
+                           ]) &&
                            incoming().strikes == existing().strikes &&
                            incoming().totalEarnings == existing().totalEarnings &&
                            incoming().walletBalance <= existing().walletBalance &&
@@ -388,13 +448,41 @@ service cloud.firestore {
                              (incoming().role == existing().role && incoming().verificationStatus == existing().verificationStatus) ||
                              (incoming().role == 'CUSTOMER' && incoming().verificationStatus == 'APPROVED') ||
                              (incoming().role == 'WORKER' && incoming().verificationStatus == 'PENDING')
-                           ) &&
+                           )
+                         ) ||
+                         // Worker increments jobsCompleted & totalEarnings when completing their IN_PROGRESS order
+                         (
                            incoming().diff(existing()).affectedKeys().hasOnly([
-                             'role', 'verificationStatus', 'fullName', 'phone', 'email',
-                             'city', 'area', 'address', 'skill', 'experienceYears', 'cnic',
-                             'payoutAccount', 'femaleSafe', 'isOnline', 'walletBalance',
-                             'jobsCompleted', 'updatedAt'
-                           ])
+                             'jobsCompleted', 'totalEarnings', 'lastCompletedOrderId', 'updatedAt'
+                           ]) &&
+                           isOwner(profileId) &&
+                           existing().role == 'WORKER' &&
+                           'lastCompletedOrderId' in incoming() &&
+                           isWorkerCompletionProfileUpdate(incoming().lastCompletedOrderId)
+                         ) ||
+                         // Customer cancels an ACCEPTED order -> atomic lead-fee refund to assigned worker
+                         (
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'walletBalance', 'lastRefundOrderId', 'updatedAt'
+                           ]) &&
+                           'lastRefundOrderId' in incoming() &&
+                           isCustomerCancelRefundProfileUpdate(profileId, incoming().lastRefundOrderId)
+                         ) ||
+                         // Customer logs one quality strike on a COMPLETED order
+                         (
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'strikes', 'lastStrikeOrderId', 'updatedAt'
+                           ]) &&
+                           'lastStrikeOrderId' in incoming() &&
+                           isCustomerStrikeProfileUpdate(profileId, incoming().lastStrikeOrderId)
+                         ) ||
+                         // Customer submits first rating on a COMPLETED order -> syncs worker average rating
+                         (
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'rating', 'lastRatedOrderId', 'updatedAt'
+                           ]) &&
+                           'lastRatedOrderId' in incoming() &&
+                           isCustomerRatingProfileUpdate(profileId, incoming().lastRatedOrderId)
                          )
                        );
 

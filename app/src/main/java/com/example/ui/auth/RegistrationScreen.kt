@@ -1,9 +1,9 @@
 package com.example.ui.auth
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,9 +18,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -28,7 +25,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.local.UserProfileEntity
 import com.example.model.CatalogData
+import com.example.ui.components.KaamWalaDialogShape
+import com.example.ui.components.KaamWalaInputShape
+import com.example.ui.components.kaamWalaTextFieldColors
+import com.example.ui.components.tactilePress
 import com.example.ui.theme.LocalKaamWalaExtras
+import com.example.ui.theme.tabularMono
 
 @Composable
 fun RegistrationDialog(
@@ -79,9 +81,12 @@ fun RegistrationDialog(
     var payoutAccount by remember(initialProfile) { mutableStateOf(initialProfile?.payoutAccount.orEmpty()) }
     var femaleSafe by remember(initialProfile) { mutableStateOf(initialProfile?.femaleSafe ?: false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
+    val fieldColors = kaamWalaTextFieldColors()
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KaamWalaDialogShape,
+        containerColor = MaterialTheme.colorScheme.surface,
         properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier
             .fillMaxWidth()
@@ -148,7 +153,7 @@ fun RegistrationDialog(
 
                 if (initialProfile != null && role == "WORKER") {
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = if (initialProfile.verificationStatus == "APPROVED") extras.emeraldTint else extras.amberBg,
                         border = BorderStroke(
                             1.dp,
@@ -182,6 +187,8 @@ fun RegistrationDialog(
                     label = { Text("Poora Naam (Full Name)") },
                     placeholder = { Text("e.g. Hamza Khan") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = fieldColors,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("reg_name_input")
@@ -193,6 +200,9 @@ fun RegistrationDialog(
                     label = { Text("WhatsApp / Mobile Number") },
                     placeholder = { Text("0300-1234567") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = fieldColors,
+                    textStyle = LocalTextStyle.current.tabularMono(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -207,6 +217,8 @@ fun RegistrationDialog(
                             onValueChange = {},
                             readOnly = true,
                             label = { Text("City") },
+                            shape = KaamWalaInputShape,
+                            colors = fieldColors,
                             trailingIcon = { Text("▾", modifier = Modifier.padding(end = 8.dp)) },
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -231,6 +243,8 @@ fun RegistrationDialog(
                             onValueChange = {},
                             readOnly = true,
                             label = { Text("Area / Society") },
+                            shape = KaamWalaInputShape,
+                            colors = fieldColors,
                             trailingIcon = { Text("▾", modifier = Modifier.padding(end = 8.dp)) },
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -252,6 +266,8 @@ fun RegistrationDialog(
                     label = { Text(if (role == "WORKER") "Base Shop / Home Address" else "Ghar / Office Address") },
                     placeholder = { Text("House / Street / Block") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = fieldColors,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("reg_address_input")
@@ -279,6 +295,8 @@ fun RegistrationDialog(
                             onValueChange = {},
                             readOnly = true,
                             label = { Text("Aapka Hunar (Primary Skill)") },
+                            shape = KaamWalaInputShape,
+                            colors = fieldColors,
                             trailingIcon = { Text("▾", modifier = Modifier.padding(end = 10.dp)) },
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -299,6 +317,9 @@ fun RegistrationDialog(
                             onValueChange = { experienceYears = it.filter { c -> c.isDigit() }.take(2) },
                             label = { Text("Tajurba (Years)") },
                             singleLine = true,
+                            shape = KaamWalaInputShape,
+                            colors = fieldColors,
+                            textStyle = LocalTextStyle.current.tabularMono(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.weight(0.9f)
                         )
@@ -308,6 +329,9 @@ fun RegistrationDialog(
                             label = { Text("CNIC Number") },
                             placeholder = { Text("35202-1234567-1") },
                             singleLine = true,
+                            shape = KaamWalaInputShape,
+                            colors = fieldColors,
+                            textStyle = LocalTextStyle.current.tabularMono(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                             modifier = Modifier
                                 .weight(1.4f)
@@ -321,6 +345,8 @@ fun RegistrationDialog(
                         label = { Text("JazzCash / Easypaisa Payout Account") },
                         placeholder = { Text("JazzCash 0300-1234567") },
                         singleLine = true,
+                        shape = KaamWalaInputShape,
+                        colors = fieldColors,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("reg_payout_input")
@@ -330,6 +356,7 @@ fun RegistrationDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .heightIn(min = 48.dp)
                             .clickable { femaleSafe = !femaleSafe }
                     ) {
                         Checkbox(checked = femaleSafe, onCheckedChange = { femaleSafe = it })
@@ -347,6 +374,7 @@ fun RegistrationDialog(
             }
         },
         confirmButton = {
+            val interactionSource = remember { MutableInteractionSource() }
             Button(
                 onClick = {
                     val cleanDigits = phone.filter { it.isDigit() }
@@ -383,13 +411,18 @@ fun RegistrationDialog(
                         }
                     }
                 },
-                modifier = Modifier.testTag("registration_submit_button")
+                interactionSource = interactionSource,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .tactilePress(interactionSource)
+                    .heightIn(min = 48.dp)
+                    .testTag("registration_submit_button")
             ) {
                 Text(if (role == "WORKER") "Submit Karegar KYC" else "Save Customer Account")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) {
                 Text(if (initialProfile == null) "Later" else "Cancel")
             }
         }
@@ -406,15 +439,19 @@ private fun RoleOptionCard(
     modifier: Modifier = Modifier
 ) {
     val extras = LocalKaamWalaExtras.current
+    val bgColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer else extras.inputFill,
+        label = "role_bg"
+    )
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+        color = bgColor,
         border = BorderStroke(
             width = if (selected) 1.5.dp else 1.dp,
-            color = if (selected) MaterialTheme.colorScheme.primary else extras.cardBorder
+            color = if (selected) MaterialTheme.colorScheme.primary else extras.inputBorder
         ),
-        modifier = modifier.heightIn(min = 72.dp)
+        modifier = modifier.heightIn(min = 74.dp)
     ) {
         Column(
             modifier = Modifier.padding(10.dp),

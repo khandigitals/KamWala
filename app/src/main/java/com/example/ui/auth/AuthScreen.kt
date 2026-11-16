@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -21,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -39,6 +41,7 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
 import com.example.R
+import com.example.ui.components.tactilePress
 import com.example.ui.theme.LocalKaamWalaExtras
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
@@ -279,23 +282,29 @@ fun AuthScreen(
                 .offset(y = (-24).dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            val signInInteraction = remember { MutableInteractionSource() }
             Surface(
-                shape = RoundedCornerShape(22.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(1.dp, extras.cardBorder),
-                shadowElevation = 6.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .widthIn(max = 520.dp)
+                    .shadow(
+                        elevation = 10.dp,
+                        shape = RoundedCornerShape(20.dp),
+                        ambientColor = extras.ambientShadow,
+                        spotColor = extras.ambientShadow
+                    )
             ) {
                 Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
                         text = "Apna Account Connect Karein",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.ExtraBold
                     )
                     FeatureHighlightRow(
                         icon = Icons.Filled.CloudDone,
@@ -349,9 +358,11 @@ fun AuthScreen(
                             )
                         },
                         enabled = !isLoading,
+                        interactionSource = signInInteraction,
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier
                             .fillMaxWidth()
+                            .tactilePress(signInInteraction)
                             .heightIn(min = 52.dp)
                             .testTag("google_sign_in_button")
                     ) {

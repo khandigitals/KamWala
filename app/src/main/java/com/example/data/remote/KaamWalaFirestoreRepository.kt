@@ -15,9 +15,11 @@ import com.google.firebase.firestore.snapshots
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
+import kotlin.math.roundToLong
 
 class KaamWalaFirestoreRepository(
     private val db: FirebaseFirestore,
@@ -329,6 +331,78 @@ class KaamWalaFirestoreRepository(
             }
     }
 
+    fun observeMarketplaceBigJobs(uid: String, isAdmin: Boolean): Flow<List<BigJobEntity>> {
+        if (isAdmin) {
+            return db.collection("marketplaceBigJobs")
+                .snapshots()
+                .map { snap ->
+                    snap.documents.mapNotNull {
+                        it.toObject(MarketplaceBigJobDoc::class.java, ServerTimestampBehavior.ESTIMATE)?.toEntity()
+                    }.sortedByDescending { it.createdAt }
+                }
+                .catch { error ->
+                    logAndRethrowIfSignedIn(error, OperationType.LIST, "marketplaceBigJobs", uid)
+                }
+        }
+        val ownFlow = db.collection("marketplaceBigJobs")
+            .whereEqualTo("customerId", uid)
+            .snapshots()
+            .map { snap ->
+                snap.documents.mapNotNull {
+                    it.toObject(MarketplaceBigJobDoc::class.java, ServerTimestampBehavior.ESTIMATE)?.toEntity()
+                }
+            }
+            .catch { error ->
+                logAndRethrowIfSignedIn(error, OperationType.LIST, "marketplaceBigJobs(own)", uid)
+            }
+        val openFlow = db.collection("marketplaceBigJobs")
+            .whereEqualTo("status", "OPEN")
+            .snapshots()
+            .map { snap ->
+                snap.documents.mapNotNull {
+                    it.toObject(MarketplaceBigJobDoc::class.java, ServerTimestampBehavior.ESTIMATE)?.toEntity()
+                }
+            }
+            .catch { error ->
+                logAndRethrowIfSignedIn(error, OperationType.LIST, "marketplaceBigJobs(open)", uid)
+            }
+        return combine(ownFlow, openFlow) { own, open ->
+            (own + open).associateBy { it.id }.values.sortedByDescending { it.createdAt }
+        }
+    }
+
+    fun observeMarketplaceBidsForJob(job: BigJobEntity, uid: String, isAdmin: Boolean): Flow<List<BidEntity>> {
+        val base = db.collection("marketplaceBigJobs").document(job.id).collection("bids")
+        val query = when {
+            isAdmin -> base
+            job.customerId == uid -> base.whereEqualTo("customerId", uid)
+            else -> base.whereEqualTo("workerUid", uid)
+        }
+        return query.snapshots()
+            .map { snap ->
+                snap.documents.mapNotNull {
+                    it.toObject(MarketplaceBidDoc::class.java, ServerTimestampBehavior.ESTIMATE)?.toEntity()
+                }.sortedByDescending { it.createdAt }
+            }
+            .catch { error ->
+                logAndRethrowIfSignedIn(error, OperationType.LIST, "marketplaceBigJobs/${job.id}/bids", uid)
+            }
+    }
+
+    fun observeMarketplaceB2b(uid: String, isAdmin: Boolean): Flow<List<B2bLeadEntity>> {
+        val query = if (isAdmin) db.collection("marketplaceB2b")
+        else db.collection("marketplaceB2b").whereEqualTo("submittedByUid", uid)
+        return query.snapshots()
+            .map { snap ->
+                snap.documents.mapNotNull {
+                    it.toObject(MarketplaceB2bDoc::class.java, ServerTimestampBehavior.ESTIMATE)?.toEntity()
+                }.sortedByDescending { it.createdAt }
+            }
+            .catch { error ->
+                logAndRethrowIfSignedIn(error, OperationType.LIST, "marketplaceB2b", uid)
+            }
+    }
+
     fun observeAdminLedger(uid: String): Flow<List<AdminLedgerEntity>> =
         db.collection("adminLedger")
             .snapshots()
@@ -453,15 +527,22 @@ class KaamWalaFirestoreRepository(
         requireUserId()
         val ref = profileRef(workerUid)
         try {
-            val snap = ref.get().await()
-            val currentWallet = snap.getLong("walletBalance") ?: 0L
-            ref.update(
-                mapOf(
-                    "verificationStatus" to "APPROVED",
-                    "walletBalance" to currentWallet + bonusWallet.coerceAtLeast(0L),
-                    "updatedAt" to FieldValue.serverTimestamp()
+            db.runTransaction { transaction ->
+                val snap = transaction.get(ref)
+                val status = snap.getString("verificationStatus") ?: "PENDING"
+                if (status == "APPROVED") {
+                    return@runTransaction
+                }
+                val currentWallet = snap.getLong("walletBalance") ?: 0L
+                transaction.update(
+                    ref,
+                    mapOf(
+                        "verificationStatus" to "APPROVED",
+                        "walletBalance" to currentWallet + bonusWallet.coerceAtLeast(0L),
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
                 )
-            ).await()
+            }.await()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -477,6 +558,24 @@ class KaamWalaFirestoreRepository(
             ref.update(
                 mapOf(
                     "verificationStatus" to "REJECTED",
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, ref.path)
+            throw e
+        }
+    }
+
+    suspend fun clearWorkerStrikes(workerUid: String) {
+        requireUserId()
+        val ref = profileRef(workerUid)
+        try {
+            ref.update(
+                mapOf(
+                    "strikes" to 0L,
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
             ).await()
@@ -764,36 +863,73 @@ class KaamWalaFirestoreRepository(
         actorName: String
     ) {
         val uid = requireUserId()
-        val commission = ((booking.total * commissionPercent.coerceIn(0, 50)) / 100).coerceAtLeast(0)
         if (booking.customerId.isNotBlank()) {
-            val updates = mutableMapOf<String, Any>(
-                "status" to "COMPLETED",
-                "proofPhotoUri" to proofPhotoUri.take(1000),
-                "commissionAmount" to commission.toLong()
-            )
-            if (booking.paymentMethod == "CASH") {
-                updates["paymentStatus"] = "SETTLED"
-            }
-            updateOrderFields(booking, updates)
-            if (booking.paymentMethod == "CASH" && commission > 0) {
-                recordAdminLedgerEntry(
-                    AdminLedgerEntity(
-                        id = "LED-${UUID.randomUUID().toString().take(8).uppercase()}",
-                        entryType = "COMMISSION",
-                        amount = commission,
-                        orderId = booking.id,
-                        actorName = actorName,
-                        note = "Cash job $commissionPercent% fee (${booking.serviceName})",
-                        recordedByUid = uid
+            val orderRef = marketOrderRef(booking.id)
+            val ledgerRef = db.collection("adminLedger").document("LED-${UUID.randomUUID().toString().take(8).uppercase()}")
+            val wProfileRef = booking.workerId.takeIf { it.isNotBlank() }?.let { profileRef(it) }
+            try {
+                db.runTransaction { transaction ->
+                    val orderSnap = transaction.get(orderRef)
+                    val currentStatus = orderSnap.getString("status") ?: ""
+                    if (currentStatus != "IN_PROGRESS") {
+                        throw IllegalStateException("Order must be IN_PROGRESS before completing (current: $currentStatus).")
+                    }
+                    val profileSnap = wProfileRef?.let { transaction.get(it) }
+                    val orderTotal = (orderSnap.getLong("total") ?: booking.total.toLong()).toInt()
+                    val finalTotal = maxOf(orderTotal, booking.total).coerceAtLeast(0)
+                    val commission = ((finalTotal * commissionPercent.coerceIn(0, 50)) / 100).coerceAtLeast(0)
+                    val workerNet = (finalTotal - commission).coerceAtLeast(0)
+
+                    val updates = mutableMapOf<String, Any>(
+                        "status" to "COMPLETED",
+                        "proofPhotoUri" to proofPhotoUri.take(65000),
+                        "commissionAmount" to commission.toLong(),
+                        "updatedAt" to FieldValue.serverTimestamp()
                     )
-                )
+                    if (booking.paymentMethod == "CASH") {
+                        updates["paymentStatus"] = "SETTLED"
+                    }
+                    transaction.update(orderRef, updates)
+
+                    if (profileSnap != null && profileSnap.exists() && wProfileRef != null) {
+                        val prevJobs = profileSnap.getLong("jobsCompleted") ?: 0L
+                        val prevEarnings = profileSnap.getLong("totalEarnings") ?: 0L
+                        transaction.update(
+                            wProfileRef,
+                            mapOf(
+                                "jobsCompleted" to prevJobs + 1L,
+                                "totalEarnings" to prevEarnings + workerNet.toLong(),
+                                "lastCompletedOrderId" to booking.id,
+                                "updatedAt" to FieldValue.serverTimestamp()
+                            )
+                        )
+                    }
+
+                    if (booking.paymentMethod == "CASH" && commission > 0) {
+                        val ledgerEntry = AdminLedgerEntity(
+                            id = ledgerRef.id,
+                            entryType = "COMMISSION",
+                            amount = commission,
+                            orderId = booking.id,
+                            actorName = actorName,
+                            note = "Cash job $commissionPercent% fee (${booking.serviceName})",
+                            recordedByUid = uid
+                        )
+                        transaction.set(ledgerRef, ledgerEntry.toCreateMap(uid))
+                    }
+                }.await()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                handleFirestoreError(e, OperationType.UPDATE, orderRef.path)
+                throw e
             }
         } else {
             updateBookingFields(
                 booking.id,
                 mapOf(
                     "status" to "COMPLETED",
-                    "proofPhotoUri" to proofPhotoUri.take(1000)
+                    "proofPhotoUri" to proofPhotoUri.take(65000)
                 )
             )
         }
@@ -825,15 +961,159 @@ class KaamWalaFirestoreRepository(
         }
     }
 
+    suspend fun submitOrderRating(booking: BookingEntity, rating: Int, reviewNote: String) {
+        requireUserId()
+        val safeRating = rating.coerceIn(1, 5)
+        val cleanNote = reviewNote.trim().take(500)
+        if (booking.customerId.isNotBlank() && booking.workerId.isNotBlank()) {
+            val orderRef = marketOrderRef(booking.id)
+            val wProfileRef = profileRef(booking.workerId)
+            try {
+                db.runTransaction { transaction ->
+                    val orderSnap = transaction.get(orderRef)
+                    if ((orderSnap.getLong("rating") ?: 0L) != 0L) {
+                        throw IllegalStateException("Order is already rated.")
+                    }
+                    val pSnap = transaction.get(wProfileRef)
+                    transaction.update(
+                        orderRef,
+                        mapOf(
+                            "rating" to safeRating.toLong(),
+                            "reviewNote" to cleanNote,
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                    if (pSnap.exists()) {
+                        val completedCount = (pSnap.getLong("jobsCompleted") ?: 1L).coerceAtLeast(1L)
+                        val prevRating = pSnap.getDouble("rating") ?: 5.0
+                        val rawAvg = ((prevRating * (completedCount - 1L).coerceAtLeast(0L)) + safeRating) / completedCount.toDouble()
+                        val roundedAvg = ((rawAvg * 10.0).roundToLong() / 10.0).coerceIn(1.0, 5.0)
+                        transaction.update(
+                            wProfileRef,
+                            mapOf(
+                                "rating" to roundedAvg,
+                                "lastRatedOrderId" to booking.id,
+                                "updatedAt" to FieldValue.serverTimestamp()
+                            )
+                        )
+                    }
+                }.await()
+                return
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                handleFirestoreError(e, OperationType.UPDATE, orderRef.path)
+                throw e
+            }
+        }
+        updateOrderFields(
+            booking,
+            mapOf(
+                "rating" to safeRating.toLong(),
+                "reviewNote" to cleanNote
+            )
+        )
+    }
+
     suspend fun reportStrike(booking: BookingEntity, currentStrikes: Int) {
+        requireUserId()
+        if (booking.customerId.isNotBlank() && booking.workerId.isNotBlank()) {
+            val orderRef = marketOrderRef(booking.id)
+            val wProfileRef = profileRef(booking.workerId)
+            try {
+                db.runTransaction { transaction ->
+                    val orderSnap = transaction.get(orderRef)
+                    val existingNote = orderSnap.getString("reviewNote").orEmpty()
+                    if (existingNote.contains("[STRIKE LOGGED]")) {
+                        throw IllegalStateException("Quality strike already logged for this order.")
+                    }
+                    val pSnap = transaction.get(wProfileRef)
+                    val updatedNote = if (existingNote.isBlank()) {
+                        "[STRIKE LOGGED] Quality strike reported"
+                    } else {
+                        "${existingNote.take(470)} [STRIKE LOGGED]"
+                    }
+                    transaction.update(
+                        orderRef,
+                        mapOf(
+                            "reviewNote" to updatedNote.take(500),
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                    if (pSnap.exists()) {
+                        val cur = pSnap.getLong("strikes") ?: 0L
+                        val next = (cur + 1L).coerceAtMost(3L)
+                        transaction.update(
+                            wProfileRef,
+                            mapOf(
+                                "strikes" to next,
+                                "lastStrikeOrderId" to booking.id,
+                                "updatedAt" to FieldValue.serverTimestamp()
+                            )
+                        )
+                    }
+                }.await()
+                return
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                handleFirestoreError(e, OperationType.UPDATE, orderRef.path)
+                throw e
+            }
+        }
+
         val nextStrikes = (currentStrikes + 1).coerceAtMost(3).toLong()
         updateWorkspaceFields(mapOf("workerStrikes" to nextStrikes))
-        val note = if (booking.reviewNote.isBlank()) "Quality strike reported"
-        else "${booking.reviewNote} (Strike reported)"
+        val note = if (booking.reviewNote.isBlank()) "[STRIKE LOGGED] Quality strike reported"
+        else "${booking.reviewNote.take(470)} [STRIKE LOGGED]"
         updateOrderFields(booking, mapOf("reviewNote" to note.take(500)))
     }
 
     suspend fun cancelBooking(booking: BookingEntity) {
+        requireUserId()
+        if (booking.customerId.isNotBlank() &&
+            booking.status == "ACCEPTED" &&
+            booking.workerId.isNotBlank() &&
+            booking.leadFeePaid > 0
+        ) {
+            val orderRef = marketOrderRef(booking.id)
+            val wProfileRef = profileRef(booking.workerId)
+            try {
+                db.runTransaction { transaction ->
+                    val orderSnap = transaction.get(orderRef)
+                    val currentStatus = orderSnap.getString("status") ?: ""
+                    if (currentStatus != "ACCEPTED") {
+                        throw IllegalStateException("Order is no longer ACCEPTED ($currentStatus).")
+                    }
+                    val paidLeadFee = orderSnap.getLong("leadFeePaid") ?: 0L
+                    val pSnap = transaction.get(wProfileRef)
+                    transaction.update(
+                        orderRef,
+                        mapOf(
+                            "status" to "CANCELLED",
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                    if (paidLeadFee > 0L && pSnap.exists()) {
+                        val curWallet = pSnap.getLong("walletBalance") ?: 0L
+                        transaction.update(
+                            wProfileRef,
+                            mapOf(
+                                "walletBalance" to curWallet + paidLeadFee,
+                                "lastRefundOrderId" to booking.id,
+                                "updatedAt" to FieldValue.serverTimestamp()
+                            )
+                        )
+                    }
+                }.await()
+                return
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                handleFirestoreError(e, OperationType.UPDATE, orderRef.path)
+                throw e
+            }
+        }
         updateOrderFields(booking, mapOf("status" to "CANCELLED"))
     }
 
@@ -892,11 +1172,15 @@ class KaamWalaFirestoreRepository(
         }
     }
 
-    suspend fun insertBigJob(bigJob: BigJobEntity) {
+    suspend fun insertBigJob(bigJob: BigJobEntity, publishToMarketplace: Boolean = false) {
         val uid = requireUserId()
-        val docRef = userRef(uid).collection("bigJobs").document(bigJob.id)
+        val isShared = publishToMarketplace || bigJob.customerId.isNotBlank()
+        val docRef = if (isShared) db.collection("marketplaceBigJobs").document(bigJob.id)
+        else userRef(uid).collection("bigJobs").document(bigJob.id)
+        val payload = if (isShared) bigJob.toMarketplaceCreateMap(bigJob.customerId.ifBlank { uid })
+        else bigJob.toCreateMap()
         try {
-            docRef.set(bigJob.toCreateMap()).await()
+            docRef.set(payload).await()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -905,9 +1189,11 @@ class KaamWalaFirestoreRepository(
         }
     }
 
-    suspend fun acceptBid(bigJobId: String, bidId: String) {
+    suspend fun acceptBid(bigJob: BigJobEntity, bidId: String) {
         val uid = requireUserId()
-        val docRef = userRef(uid).collection("bigJobs").document(bigJobId)
+        val isShared = !bigJob.isDemo && bigJob.customerId.isNotBlank()
+        val docRef = if (isShared) db.collection("marketplaceBigJobs").document(bigJob.id)
+        else userRef(uid).collection("bigJobs").document(bigJob.id)
         try {
             docRef.update(
                 mapOf(
@@ -924,11 +1210,17 @@ class KaamWalaFirestoreRepository(
         }
     }
 
-    suspend fun insertBid(bid: BidEntity) {
+    suspend fun insertBid(bid: BidEntity, isSharedBigJob: Boolean = false) {
         val uid = requireUserId()
-        val docRef = userRef(uid).collection("bids").document(bid.id)
+        val isShared = isSharedBigJob || bid.customerId.isNotBlank()
+        val docRef = if (isShared) {
+            db.collection("marketplaceBigJobs").document(bid.bigJobId).collection("bids").document(bid.id)
+        } else {
+            userRef(uid).collection("bids").document(bid.id)
+        }
+        val payload = if (isShared) bid.toMarketplaceCreateMap(uid) else bid.toCreateMap()
         try {
-            docRef.set(bid.toCreateMap()).await()
+            docRef.set(payload).await()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -937,11 +1229,15 @@ class KaamWalaFirestoreRepository(
         }
     }
 
-    suspend fun insertB2bLead(lead: B2bLeadEntity) {
+    suspend fun insertB2bLead(lead: B2bLeadEntity, publishToMarketplace: Boolean = false) {
         val uid = requireUserId()
-        val docRef = userRef(uid).collection("b2bLeads").document(lead.id)
+        val isShared = publishToMarketplace || lead.submittedByUid.isNotBlank()
+        val docRef = if (isShared) db.collection("marketplaceB2b").document(lead.id)
+        else userRef(uid).collection("b2bLeads").document(lead.id)
+        val payload = if (isShared) lead.toMarketplaceCreateMap(lead.submittedByUid.ifBlank { uid })
+        else lead.toCreateMap()
         try {
-            docRef.set(lead.toCreateMap()).await()
+            docRef.set(payload).await()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -950,9 +1246,11 @@ class KaamWalaFirestoreRepository(
         }
     }
 
-    suspend fun activateB2bLead(leadId: String) {
+    suspend fun activateB2bLead(lead: B2bLeadEntity) {
         val uid = requireUserId()
-        val docRef = userRef(uid).collection("b2bLeads").document(leadId)
+        val isShared = !lead.isDemo && lead.submittedByUid.isNotBlank()
+        val docRef = if (isShared) db.collection("marketplaceB2b").document(lead.id)
+        else userRef(uid).collection("b2bLeads").document(lead.id)
         try {
             docRef.update(
                 mapOf(
@@ -994,24 +1292,34 @@ class KaamWalaFirestoreRepository(
         val uid = requireUserId()
         if (req.workerUid.isNotBlank()) {
             val docRef = db.collection("marketplaceTopUps").document(req.id)
+            val wProfile = profileRef(req.workerUid)
             try {
-                docRef.update(
-                    mapOf(
-                        "status" to "APPROVED",
-                        "updatedAt" to FieldValue.serverTimestamp()
-                    )
-                ).await()
-                val wProfile = profileRef(req.workerUid)
-                val snap = wProfile.get().await()
-                if (snap.exists()) {
-                    val cur = snap.getLong("walletBalance") ?: 0L
-                    wProfile.update(
+                db.runTransaction { transaction ->
+                    val reqSnap = transaction.get(docRef)
+                    val curStatus = reqSnap.getString("status") ?: ""
+                    if (curStatus != "PENDING") {
+                        throw IllegalStateException("Top-up request is already $curStatus.")
+                    }
+                    val amount = reqSnap.getLong("amount") ?: req.amount.toLong()
+                    val pSnap = transaction.get(wProfile)
+                    transaction.update(
+                        docRef,
                         mapOf(
-                            "walletBalance" to cur + req.amount.toLong(),
+                            "status" to "APPROVED",
                             "updatedAt" to FieldValue.serverTimestamp()
                         )
-                    ).await()
-                }
+                    )
+                    if (pSnap.exists()) {
+                        val cur = pSnap.getLong("walletBalance") ?: 0L
+                        transaction.update(
+                            wProfile,
+                            mapOf(
+                                "walletBalance" to cur + amount,
+                                "updatedAt" to FieldValue.serverTimestamp()
+                            )
+                        )
+                    }
+                }.await()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -1023,12 +1331,20 @@ class KaamWalaFirestoreRepository(
 
         val docRef = userRef(uid).collection("topUpRequests").document(req.id)
         try {
-            docRef.update(
-                mapOf(
-                    "status" to "APPROVED",
-                    "updatedAt" to FieldValue.serverTimestamp()
+            db.runTransaction { transaction ->
+                val reqSnap = transaction.get(docRef)
+                val curStatus = reqSnap.getString("status") ?: ""
+                if (curStatus != "PENDING") {
+                    throw IllegalStateException("Top-up request is already $curStatus.")
+                }
+                transaction.update(
+                    docRef,
+                    mapOf(
+                        "status" to "APPROVED",
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
                 )
-            ).await()
+            }.await()
             updateWorkspaceFields(mapOf("walletBalance" to FieldValue.increment(req.amount.toLong())))
         } catch (e: CancellationException) {
             throw e
@@ -1095,50 +1411,103 @@ class KaamWalaFirestoreRepository(
 
     suspend fun collectDailyQist(loan: ToolLoanEntity) {
         val uid = requireUserId()
-        val nextPaid = (loan.paidAmount + loan.dailyQist).coerceAtMost(loan.totalPrice)
-        val newStatus = if (nextPaid >= loan.totalPrice) "PAID_OFF" else "ACTIVE"
         val isMkt = loan.workerUid.isNotBlank()
         val docRef = if (isMkt) db.collection("marketplaceToolLoans").document(loan.id)
         else userRef(uid).collection("toolLoans").document(loan.id)
+        val ledgerRef = db.collection("adminLedger").document("LED-${UUID.randomUUID().toString().take(8).uppercase()}")
         try {
-            docRef.update(
-                mapOf(
-                    "paidAmount" to nextPaid.toLong(),
-                    "status" to newStatus,
-                    "updatedAt" to FieldValue.serverTimestamp()
-                )
-            ).await()
             if (isMkt) {
                 val pRef = profileRef(loan.workerUid)
-                val snap = pRef.get().await()
-                if (snap.exists()) {
-                    val cur = snap.getLong("walletBalance") ?: 0L
-                    pRef.update(
+                db.runTransaction { transaction ->
+                    val loanSnap = transaction.get(docRef)
+                    val curStatus = loanSnap.getString("status") ?: ""
+                    if (curStatus != "ACTIVE") {
+                        throw IllegalStateException("Tool loan is not ACTIVE ($curStatus).")
+                    }
+                    val curPaid = (loanSnap.getLong("paidAmount") ?: loan.paidAmount.toLong()).toInt()
+                    val total = (loanSnap.getLong("totalPrice") ?: loan.totalPrice.toLong()).toInt()
+                    val qist = (loanSnap.getLong("dailyQist") ?: loan.dailyQist.toLong()).toInt()
+                    val collected = qist.coerceAtMost((total - curPaid).coerceAtLeast(0))
+                    if (collected <= 0) {
+                        throw IllegalStateException("Tool loan is already paid off.")
+                    }
+                    val nextPaid = (curPaid + collected).coerceAtMost(total)
+                    val newStatus = if (nextPaid >= total) "PAID_OFF" else "ACTIVE"
+                    val pSnap = transaction.get(pRef)
+                    transaction.update(
+                        docRef,
                         mapOf(
-                            "walletBalance" to (cur - loan.dailyQist.toLong()).coerceAtLeast(0L),
+                            "paidAmount" to nextPaid.toLong(),
+                            "status" to newStatus,
                             "updatedAt" to FieldValue.serverTimestamp()
                         )
-                    ).await()
-                }
-            } else {
-                updateWorkspaceFields(
-                    mapOf(
-                        "walletBalance" to FieldValue.increment(-loan.dailyQist.toLong()),
-                        "appRevenue" to FieldValue.increment(loan.dailyQist.toLong())
                     )
-                )
+                    if (pSnap.exists()) {
+                        val curWallet = pSnap.getLong("walletBalance") ?: 0L
+                        transaction.update(
+                            pRef,
+                            mapOf(
+                                "walletBalance" to (curWallet - collected.toLong()).coerceAtLeast(0L),
+                                "updatedAt" to FieldValue.serverTimestamp()
+                            )
+                        )
+                    }
+                    val ledgerEntry = AdminLedgerEntity(
+                        id = ledgerRef.id,
+                        entryType = "TOOL_QIST",
+                        amount = collected,
+                        orderId = loan.id,
+                        actorName = loan.workerName,
+                        note = "Tool qist for ${loan.toolName}",
+                        recordedByUid = uid
+                    )
+                    transaction.set(ledgerRef, ledgerEntry.toCreateMap(uid))
+                }.await()
+            } else {
+                var collectedWorkspace = loan.dailyQist
+                db.runTransaction { transaction ->
+                    val loanSnap = transaction.get(docRef)
+                    val curStatus = loanSnap.getString("status") ?: ""
+                    if (curStatus != "ACTIVE") {
+                        throw IllegalStateException("Tool loan is not ACTIVE ($curStatus).")
+                    }
+                    val curPaid = (loanSnap.getLong("paidAmount") ?: loan.paidAmount.toLong()).toInt()
+                    val total = (loanSnap.getLong("totalPrice") ?: loan.totalPrice.toLong()).toInt()
+                    val qist = (loanSnap.getLong("dailyQist") ?: loan.dailyQist.toLong()).toInt()
+                    collectedWorkspace = qist.coerceAtMost((total - curPaid).coerceAtLeast(0))
+                    val nextPaid = (curPaid + collectedWorkspace).coerceAtMost(total)
+                    val newStatus = if (nextPaid >= total) "PAID_OFF" else "ACTIVE"
+                    transaction.update(
+                        docRef,
+                        mapOf(
+                            "paidAmount" to nextPaid.toLong(),
+                            "status" to newStatus,
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                }.await()
+                if (collectedWorkspace > 0) {
+                    updateWorkspaceFields(
+                        mapOf(
+                            "walletBalance" to FieldValue.increment(-collectedWorkspace.toLong()),
+                            "appRevenue" to FieldValue.increment(collectedWorkspace.toLong())
+                        )
+                    )
+                    runCatching {
+                        recordAdminLedgerEntry(
+                            AdminLedgerEntity(
+                                id = ledgerRef.id,
+                                entryType = "TOOL_QIST",
+                                amount = collectedWorkspace,
+                                orderId = loan.id,
+                                actorName = loan.workerName,
+                                note = "Tool qist for ${loan.toolName}",
+                                recordedByUid = uid
+                            )
+                        )
+                    }
+                }
             }
-            recordAdminLedgerEntry(
-                AdminLedgerEntity(
-                    id = "LED-${UUID.randomUUID().toString().take(8).uppercase()}",
-                    entryType = "TOOL_QIST",
-                    amount = loan.dailyQist,
-                    orderId = loan.id,
-                    actorName = loan.workerName,
-                    note = "Tool qist for ${loan.toolName}",
-                    recordedByUid = uid
-                )
-            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

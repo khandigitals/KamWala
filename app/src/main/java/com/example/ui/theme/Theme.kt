@@ -17,7 +17,14 @@ import androidx.compose.ui.unit.dp
 data class KaamWalaExtras(
     val heroStart: Color = EmeraldDark,
     val heroEnd: Color = SlateDark,
-    val cardBorder: Color = SlateBorder,
+    val cardBorder: Color = HairlineBorder,
+    val inputBorder: Color = SlateBorder,
+    val inputFill: Color = InputFillBg,
+    val ambientShadow: Color = AmbientShadow,
+    val frostedHeader: Color = Color(0xEB064E3B),
+    val frostedPill: Color = Color(0x2EFFFFFF),
+    val frostedPillBorder: Color = Color(0x40FFFFFF),
+    val receiptBg: Color = Color(0xFFF8FAFC),
     val mutedText: Color = SlateMuted,
     val secondaryText: Color = Slate600,
     val emeraldTint: Color = EmeraldLight,
@@ -62,7 +69,7 @@ private val LightColorScheme = lightColorScheme(
     onBackground = SlateDark,
     surface = SurfaceWhite,
     onSurface = SlateDark,
-    surfaceVariant = Color(0xFFF8FAFC),
+    surfaceVariant = InputFillBg,
     onSurfaceVariant = Slate600,
     outline = SlateBorder,
     error = DangerText,
@@ -96,10 +103,10 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val KaamWalaShapes = Shapes(
-    small = RoundedCornerShape(10.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(22.dp),
-    extraLarge = RoundedCornerShape(26.dp)
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(28.dp)
 )
 
 @Composable
@@ -111,6 +118,10 @@ fun KaamWalaTheme(
     val extras = if (darkTheme) {
         KaamWalaExtras(
             cardBorder = Color(0xFF334155),
+            inputBorder = Color(0xFF475569),
+            inputFill = Color(0xFF1E293B),
+            ambientShadow = Color(0x40000000),
+            receiptBg = Color(0xFF1E293B),
             mutedText = Color(0xFF94A3B8),
             secondaryText = Color(0xFFCBD5E1),
             emeraldTint = Color(0xFF064E3B),

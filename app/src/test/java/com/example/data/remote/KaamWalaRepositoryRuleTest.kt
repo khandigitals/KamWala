@@ -2,6 +2,9 @@ package com.example.data.remote
 
 import com.example.base.FirestoreEmulatorTestBase
 import com.example.data.local.AdminLedgerEntity
+import com.example.data.local.B2bLeadEntity
+import com.example.data.local.BidEntity
+import com.example.data.local.BigJobEntity
 import com.example.data.local.BookingEntity
 import com.example.data.local.UserProfileEntity
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -338,6 +341,270 @@ class KaamWalaRepositoryRuleTest : FirestoreEmulatorTestBase() {
         }
         val settled = withTimeout(DEFAULT_TIMEOUT_MS) { adminRepo.getBookingById(orderId) }
         assertEquals("SETTLED", settled?.paymentStatus)
+    }
+
+    @Test
+    fun marketplaceOrder_cancelAcceptedRefundsLeadFee_completeUpdatesStats_andStrikeLifecycle() = runBlocking {
+        val customerUid = signInTestUser(ALICE_EMAIL)
+        val customerRepo = KaamWalaFirestoreRepository(firestore, auth)
+
+        val workerEmail = "worker.tx.${UUID.randomUUID().toString().take(6)}@kaamwala.test"
+        val workerUid = signInTestUser(workerEmail)
+        val workerRepo = KaamWalaFirestoreRepository(firestore, auth)
+        withTimeout(DEFAULT_TIMEOUT_MS) {
+            workerRepo.saveUserProfile(
+                UserProfileEntity(
+                    userId = workerUid,
+                    role = "WORKER",
+                    fullName = "Ustad Tx",
+                    phone = "0300-7778899",
+                    email = workerEmail,
+                    city = "Lahore",
+                    area = "Gulberg",
+                    address = "Workshop 9",
+                    skill = "AC & Cooling",
+                    experienceYears = 5,
+                    cnic = "35202-7778899-1",
+                    payoutAccount = "JazzCash 0300-7778899",
+                    isOnline = true
+                )
+            )
+        }
+        signInTestUser(ADMIN_EMAIL)
+        val adminRepo = KaamWalaFirestoreRepository(firestore, auth)
+        withTimeout(DEFAULT_TIMEOUT_MS) {
+            adminRepo.approveWorkerProfile(workerUid, bonusWallet = 500L)
+        }
+
+        // Order 1: Customer creates -> Worker accepts (-100) -> Customer cancels -> Wallet refunded to 500
+        signInTestUser(ALICE_EMAIL)
+        val cancelOrderId = "KW-CAN-${UUID.randomUUID().toString().take(6)}"
+        withTimeout(DEFAULT_TIMEOUT_MS) {
+            customerRepo.insertBooking(
+                booking = sampleBooking(cancelOrderId).copy(customerId = customerUid, paymentMethod = "CASH"),
+                markFirstPromoUsed = false,
+                publishToMarketplace = true
+            )
+        }
+        signInTestUser(workerEmail)
+        val pendingCancel = withTimeout(DEFAULT_TIMEOUT_MS) { workerRepo.getBookingById(cancelOrderId) }!!
+        withTimeout(DEFAULT_TIMEOUT_MS) {
+            workerRepo.acceptJobAsWorker(pendingCancel, workerUid, "Ustad Tx", "0300-7778899", leadFee = 100)
+        }
+        signInTestUser(ALICE_EMAIL)
+        val acceptedForCancel = withTimeout(DEFAULT_TIMEOUT_MS) { customerRepo.getBookingById(cancelOrderId) }!!
+        withTimeout(DEFAULT_TIMEOUT_MS) {
+            customerRepo.cancelBooking(acceptedForCancel)
+        }
+        val refundedProfile = withTimeout(FLOW_TIMEOUT_MS) {
+            adminRepo // verify via worker session below
+            signInTestUser(workerEmail)
+            workerRepo.observeUserProfile(workerUid).first { it.second?.walletBalance == 500 }.second
+        }
+        assertEquals(500, refundedProfile?.walletBalance)
+
+        // Order 2: Accept -> IN_PROGRESS -> COMPLETED (stats updated) -> Customer rating & strike -> Admin clears strikes
+        signInTestUser(ALICE_EMAIL)
+        val doneOrderId = "KW-DONE-${UUID.randomUUID().toString().take(6)}"
+        withTimeout(DEFAULT_TIMEOUT_MS) {
+            customerRepo.insertBooking(
+                booking = sampleBooking(doneOrderId).copy(customerId = customerUid, total = 1000, paymentMethod = "CASH"),
+                markFirstPromoUsed = false,
+                publishToMarketplace = true
+            )
+        }
+        signInTestUser(workerEmail)
+        val pendingDone = withTimeout(DEFAULT_TIMEOUT_MS) { workerRepo.getBookingById(doneOrderId) }!!
+        withTimeout(DEFAULT_TIMEOUT_MS) {
+            workerRepo.acceptJobAsWorker(pendingDone, workerUid, "Ustad Tx", "0300-7778899", leadFee = 50)
+            val acceptedDone = workerRepo.getBookingById(doneOrderId)!!
+            workerRepo.updateOrderFields(acceptedDone, mapOf("status" to "IN_PROGRESS"))
+            val inProgressDone = workerRepo.getBookingById(doneOrderId)!!
+            workerRepo.completeOrderAndRecordCommission(
+                booking = inProgressDone,
+                proofPhotoUri = "data:image/jpeg;base64,/9j/4AAQ",
+                commissionPercent = 10,
+                actorName = "Ustad Tx"
+            )
+        }
+        val workerAfterComplete = withTimeout(FLOW_TIMEOUT_MS) {
+            workerRepo.observeUserProfile(workerUid).first { it.second?.jobsCompleted == 1 }.second
+        }
+        assertEquals(1, workerAfterComplete?.jobsCompleted)
+        assertEquals(900, workerAfterComplete?.totalEarnings)
+
+        signInTestUser(ALICE_EMAIL)
+        val completedOrder = withTimeout(DEFAULT_TIMEOUT_MS) { customerRepo.getBookingById(doneOrderId) }!!
+        withTimeout(DEFAULT_TIMEOUT_MS) {
+            customerRepo.submitOrderRating(completedOrder, 4, "Good AC check")
+            val ratedOrder = customerRepo.getBookingById(doneOrderId)!!
+            customerRepo.reportStrike(ratedOrder, currentStrikes = 0)
+        }
+
+        // Duplicate strike on same order MUST fail
+        try {
+            val struckOrder = withTimeout(DEFAULT_TIMEOUT_MS) { customerRepo.getBookingById(doneOrderId) }!!
+            withTimeout(DEFAULT_TIMEOUT_MS) {
+                customerRepo.reportStrike(struckOrder, currentStrikes = 1)
+            }
+            fail("Expected duplicate strike on same order to fail")
+        } catch (_: Exception) {
+            // Expected failure
+        }
+
+        val adminUid = signInTestUser(ADMIN_EMAIL)
+        val workerWithStrike = withTimeout(FLOW_TIMEOUT_MS) {
+            adminRepo.observeAllMarketplaceProfiles(adminUid).first { list ->
+                list.any { it.userId == workerUid && it.strikes == 1 }
+            }.first { it.userId == workerUid }
+        }
+        assertEquals(1, workerWithStrike.strikes)
+
+        withTimeout(DEFAULT_TIMEOUT_MS) {
+            adminRepo.clearWorkerStrikes(workerUid)
+        }
+        val clearedWorker = withTimeout(FLOW_TIMEOUT_MS) {
+            adminRepo.observeAllMarketplaceProfiles(adminUid).first { list ->
+                list.any { it.userId == workerUid && it.strikes == 0 }
+            }.first { it.userId == workerUid }
+        }
+        assertEquals(0, clearedWorker.strikes)
+    }
+
+    @Test
+    fun marketplaceBigJobsAndB2b_sharedCrossUserVisibilityAndAuthorization() = runBlocking {
+        val customerUid = signInTestUser(ALICE_EMAIL)
+        val customerRepo = KaamWalaFirestoreRepository(firestore, auth)
+
+        val workerEmail = "worker.bj.${UUID.randomUUID().toString().take(6)}@kaamwala.test"
+        val workerUid = signInTestUser(workerEmail)
+        val workerRepo = KaamWalaFirestoreRepository(firestore, auth)
+        withTimeout(DEFAULT_TIMEOUT_MS) {
+            workerRepo.saveUserProfile(
+                UserProfileEntity(
+                    userId = workerUid,
+                    role = "WORKER",
+                    fullName = "Ustad Solar",
+                    phone = "0300-4455112",
+                    email = workerEmail,
+                    city = "Lahore",
+                    area = "Bahria Town",
+                    address = "Shop 3",
+                    skill = "Solar",
+                    experienceYears = 5,
+                    cnic = "35202-4455112-3",
+                    payoutAccount = "Easypaisa 0300-4455112",
+                    isOnline = true
+                )
+            )
+        }
+
+        signInTestUser(ALICE_EMAIL)
+        val bigJobId = "BJ-${UUID.randomUUID().toString().take(6)}"
+        val bigJob = BigJobEntity(
+            id = bigJobId,
+            customerId = customerUid,
+            category = "Solar Setup",
+            area = "Bahria Town",
+            description = "10kW Inverter",
+            budget = 95000,
+            status = "OPEN",
+            isDemo = false
+        )
+        withTimeout(DEFAULT_TIMEOUT_MS) {
+            customerRepo.insertBigJob(bigJob, publishToMarketplace = true)
+        }
+
+        // Unapproved worker cannot bid on shared Big Job
+        signInTestUser(workerEmail)
+        val badBid = BidEntity(
+            id = "BID-UNAPPROVED",
+            bigJobId = bigJobId,
+            customerId = customerUid,
+            workerUid = workerUid,
+            workerName = "Ustad Solar",
+            amount = 88000,
+            note = "3 days"
+        )
+        try {
+            withTimeout(DEFAULT_TIMEOUT_MS) { workerRepo.insertBid(badBid, isSharedBigJob = true) }
+            fail("Expected PERMISSION_DENIED when unapproved worker bids on marketplace Big Job")
+        } catch (e: Exception) {
+            val firestoreException = e.unwrapFirestoreException()
+            assertEquals(FirebaseFirestoreException.Code.PERMISSION_DENIED, firestoreException?.code)
+        }
+
+        // Admin approves worker -> Worker places bid -> Customer awards bid
+        signInTestUser(ADMIN_EMAIL)
+        val adminRepo = KaamWalaFirestoreRepository(firestore, auth)
+        withTimeout(DEFAULT_TIMEOUT_MS) {
+            adminRepo.approveWorkerProfile(workerUid, bonusWallet = 500L)
+        }
+
+        signInTestUser(workerEmail)
+        val bidId = "BID-${UUID.randomUUID().toString().take(6)}"
+        withTimeout(DEFAULT_TIMEOUT_MS) {
+            workerRepo.insertBid(
+                BidEntity(
+                    id = bidId,
+                    bigJobId = bigJobId,
+                    customerId = customerUid,
+                    workerUid = workerUid,
+                    workerName = "Ustad Solar",
+                    amount = 88000,
+                    note = "Complete earthing included"
+                ),
+                isSharedBigJob = true
+            )
+        }
+
+        signInTestUser(ALICE_EMAIL)
+        val bids = withTimeout(FLOW_TIMEOUT_MS) {
+            customerRepo.observeMarketplaceBidsForJob(bigJob, customerUid, isAdmin = false)
+                .first { list -> list.any { it.id == bidId } }
+        }
+        assertTrue(bids.any { it.id == bidId && it.amount == 88000 })
+
+        withTimeout(DEFAULT_TIMEOUT_MS) {
+            customerRepo.acceptBid(bigJob, bidId)
+        }
+        val awarded = withTimeout(FLOW_TIMEOUT_MS) {
+            customerRepo.observeMarketplaceBigJobs(customerUid, isAdmin = false)
+                .first { list -> list.any { it.id == bigJobId && it.status == "AWARDED" } }
+                .first { it.id == bigJobId }
+        }
+        assertEquals(bidId, awarded.acceptedBidId)
+
+        // Shared B2B lead: customer creates NEW -> customer cannot activate -> Admin activates
+        val leadId = "B2B-${UUID.randomUUID().toString().take(6)}"
+        val b2bLead = B2bLeadEntity(
+            id = leadId,
+            submittedByUid = customerUid,
+            businessName = "Lahore Bakery",
+            phone = "0321-8899001",
+            packageName = "Restaurant Maintenance",
+            status = "NEW",
+            isDemo = false
+        )
+        withTimeout(DEFAULT_TIMEOUT_MS) {
+            customerRepo.insertB2bLead(b2bLead, publishToMarketplace = true)
+        }
+        try {
+            withTimeout(DEFAULT_TIMEOUT_MS) { customerRepo.activateB2bLead(b2bLead) }
+            fail("Expected PERMISSION_DENIED when non-admin activates marketplace B2B lead")
+        } catch (e: Exception) {
+            val firestoreException = e.unwrapFirestoreException()
+            assertEquals(FirebaseFirestoreException.Code.PERMISSION_DENIED, firestoreException?.code)
+        }
+
+        signInTestUser(ADMIN_EMAIL)
+        withTimeout(DEFAULT_TIMEOUT_MS) { adminRepo.activateB2bLead(b2bLead) }
+        val activated = withTimeout(FLOW_TIMEOUT_MS) {
+            adminRepo.observeMarketplaceB2b(customerUid, isAdmin = true)
+                .first { list -> list.any { it.id == leadId && it.status == "ACTIVE" } }
+                .first { it.id == leadId }
+        }
+        assertEquals("ACTIVE", activated.status)
     }
 
     private companion object {

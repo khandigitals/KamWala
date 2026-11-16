@@ -38,8 +38,12 @@ import com.example.data.local.BookingEntity
 import com.example.data.local.ChatMessageEntity
 import com.example.model.CatalogData
 import com.example.model.HardwarePart
+import com.example.ui.components.KaamWalaDialogShape
+import com.example.ui.components.KaamWalaInputShape
 import com.example.ui.components.SafetyOtpBanner
+import com.example.ui.components.kaamWalaTextFieldColors
 import com.example.ui.theme.LocalKaamWalaExtras
+import com.example.ui.theme.tabularMono
 import com.example.util.PlatformHelpers
 
 @Composable
@@ -52,6 +56,8 @@ fun BookingConfirmedDialog(
     val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KaamWalaDialogShape,
+        containerColor = MaterialTheme.colorScheme.surface,
         icon = {
             Icon(
                 Icons.Filled.CheckCircle,
@@ -75,7 +81,7 @@ fun BookingConfirmedDialog(
                 Text(
                     "${booking.serviceName} • ${booking.area}\nTotal: ${PlatformHelpers.formatPkr(booking.total)}",
                     textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium.tabularMono()
                 )
                 SafetyOtpBanner(otp = booking.otp)
                 Button(
@@ -86,15 +92,17 @@ fun BookingConfirmedDialog(
                             "New KaamWala Booking ${booking.id}: ${booking.serviceName} for ${booking.customerName} (${booking.customerPhone}) at ${booking.address}, ${booking.area}. Total: ${PlatformHelpers.formatPkr(booking.total)}. OTP: ${booking.otp}"
                         )
                     },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                 ) {
                     Text("Admin ko WhatsApp Bhejein")
                 }
                 FilledTonalButton(
                     onClick = onGoToOrders,
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 46.dp)
+                        .heightIn(min = 48.dp)
                         .testTag("go_to_orders_after_booking")
                 ) {
                     Text("Live Tracking Dekhein")
@@ -112,6 +120,7 @@ fun BigJobDialog(
     onSubmit: (category: String, area: String, desc: String, budget: Int) -> Unit
 ) {
     val extras = LocalKaamWalaExtras.current
+    val fieldColors = kaamWalaTextFieldColors()
     val categories = listOf(
         "Solar Panel Setup (5kW/10kW)",
         "Home Painting & Seepage",
@@ -127,9 +136,11 @@ fun BigJobDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KaamWalaDialogShape,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = { Text("Big Job Post Karein", style = MaterialTheme.typography.titleLarge) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Solar, Paint, Woodwork — workers ki bids payein:", style = MaterialTheme.typography.bodySmall)
                 Box {
                     OutlinedTextField(
@@ -137,6 +148,8 @@ fun BigJobDialog(
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Category") },
+                        shape = KaamWalaInputShape,
+                        colors = fieldColors,
                         trailingIcon = { Text("▾", modifier = Modifier.padding(end = 10.dp)) },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -150,13 +163,32 @@ fun BigJobDialog(
                         }
                     }
                 }
-                OutlinedTextField(value = area, onValueChange = { area = it }, label = { Text("Area ($city)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = desc, onValueChange = { desc = it; errorMsg = null }, label = { Text("Detail") }, minLines = 2, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    value = area,
+                    onValueChange = { area = it },
+                    label = { Text("Area ($city)") },
+                    singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = fieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = desc,
+                    onValueChange = { desc = it; errorMsg = null },
+                    label = { Text("Detail") },
+                    minLines = 2,
+                    shape = KaamWalaInputShape,
+                    colors = fieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
                 OutlinedTextField(
                     value = budget,
                     onValueChange = { budget = it.filter { c -> c.isDigit() }; errorMsg = null },
                     label = { Text("Budget (PKR)") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = fieldColors,
+                    textStyle = LocalTextStyle.current.tabularMono(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -176,10 +208,15 @@ fun BigJobDialog(
                         else -> onSubmit(selectedCat, area, desc, b)
                     }
                 },
-                modifier = Modifier.testTag("submit_big_job_button")
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag("submit_big_job_button")
             ) { Text("Post for Bids") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) { Text("Cancel") }
+        }
     )
 }
 
@@ -189,6 +226,7 @@ fun B2bDialog(
     onSubmit: (biz: String, phone: String, pkg: String) -> Unit
 ) {
     val extras = LocalKaamWalaExtras.current
+    val fieldColors = kaamWalaTextFieldColors()
     val packages = listOf(
         "Office Care (5 ACs + Weekly Electric/Plumb) — Rs. 8,000/mo",
         "Restaurant Deep Clean + Exhaust — Rs. 12,000/mo",
@@ -202,15 +240,28 @@ fun B2bDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KaamWalaDialogShape,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = { Text("B2B Office & Shop Contract", style = MaterialTheme.typography.titleLarge) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = biz, onValueChange = { biz = it; errorMsg = null }, label = { Text("Business Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = biz,
+                    onValueChange = { biz = it; errorMsg = null },
+                    label = { Text("Business Name") },
+                    singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = fieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it; errorMsg = null },
                     label = { Text("Phone") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = fieldColors,
+                    textStyle = LocalTextStyle.current.tabularMono(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -220,6 +271,8 @@ fun B2bDialog(
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Monthly Plan") },
+                        shape = KaamWalaInputShape,
+                        colors = fieldColors,
                         trailingIcon = { Text("▾", modifier = Modifier.padding(end = 10.dp)) },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -244,10 +297,15 @@ fun B2bDialog(
                         else -> onSubmit(biz, phone, pkg)
                     }
                 },
-                modifier = Modifier.testTag("submit_b2b_button")
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag("submit_b2b_button")
             ) { Text("Request Quote") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) { Text("Cancel") }
+        }
     )
 }
 
@@ -260,17 +318,20 @@ fun ChatDialog(
     onSend: (String) -> Unit
 ) {
     val extras = LocalKaamWalaExtras.current
+    val fieldColors = kaamWalaTextFieldColors()
     var input by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KaamWalaDialogShape,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = { Text("Live Safe Chat ($bookingId)", style = MaterialTheme.typography.titleMedium) },
         text = {
             Column {
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    border = BorderStroke(1.dp, extras.cardBorder),
+                    shape = RoundedCornerShape(14.dp),
+                    color = extras.inputFill,
+                    border = BorderStroke(1.dp, extras.inputBorder),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
@@ -291,11 +352,11 @@ fun ChatDialog(
                                     contentAlignment = if (isMine) Alignment.CenterEnd else Alignment.CenterStart
                                 ) {
                                     Surface(
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = RoundedCornerShape(14.dp),
                                         color = if (isMine) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                                         border = if (isMine) null else BorderStroke(1.dp, extras.cardBorder)
                                     ) {
-                                        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)) {
                                             Text(
                                                 msg.senderName,
                                                 style = MaterialTheme.typography.labelSmall,
@@ -332,6 +393,8 @@ fun ChatDialog(
                         onValueChange = { input = it },
                         placeholder = { Text("Message likhein...") },
                         singleLine = true,
+                        shape = KaamWalaInputShape,
+                        colors = fieldColors,
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(
@@ -342,7 +405,7 @@ fun ChatDialog(
                             }
                         },
                         modifier = Modifier
-                            .size(46.dp)
+                            .size(48.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(MaterialTheme.colorScheme.primary)
                     ) {
@@ -351,7 +414,7 @@ fun ChatDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+        confirmButton = { TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) { Text("Close") } }
     )
 }
 
@@ -365,12 +428,14 @@ fun HardwarePartsDialog(
     val extras = LocalKaamWalaExtras.current
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KaamWalaDialogShape,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = { Text("Hardware Partner Parts", style = MaterialTheme.typography.titleLarge) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (booking.addedPartsSummary.isNotBlank()) {
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = extras.emeraldTint,
                         border = BorderStroke(1.dp, extras.emeraldBorder)
                     ) {
@@ -383,26 +448,31 @@ fun HardwarePartsDialog(
                 }
                 CatalogData.HARDWARE_PARTS.forEach { part ->
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        border = BorderStroke(1.dp, extras.cardBorder)
+                        shape = RoundedCornerShape(14.dp),
+                        color = extras.inputFill,
+                        border = BorderStroke(1.dp, extras.inputBorder)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(10.dp),
+                                .padding(12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(part.name, style = MaterialTheme.typography.titleSmall)
-                                Text(PlatformHelpers.formatPkr(part.price), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                Text(
+                                    PlatformHelpers.formatPkr(part.price),
+                                    style = MaterialTheme.typography.labelMedium.tabularMono(),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             }
                             if (allowAdd) {
                                 Button(
                                     onClick = { onAddPart(part) },
-                                    contentPadding = PaddingValues(horizontal = 10.dp),
-                                    modifier = Modifier.heightIn(min = 38.dp)
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp),
+                                    modifier = Modifier.heightIn(min = 42.dp)
                                 ) {
                                     Text("Add", style = MaterialTheme.typography.labelSmall)
                                 }
@@ -412,7 +482,7 @@ fun HardwarePartsDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+        confirmButton = { TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) { Text("Close") } }
     )
 }
 
@@ -426,9 +496,11 @@ fun WarrantyCertificateDialog(
     val extras = LocalKaamWalaExtras.current
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KaamWalaDialogShape,
+        containerColor = MaterialTheme.colorScheme.surface,
         text = {
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(18.dp),
                 color = extras.emeraldTint,
                 border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
                 modifier = Modifier.fillMaxWidth()
@@ -456,7 +528,7 @@ fun WarrantyCertificateDialog(
                     Text(
                         "Order ID: ${booking.id}\nService: ${booking.serviceName}\nCustomer: ${booking.customerName}\nVerified Pro: ${booking.assignedWorkerName.ifBlank { "KaamWala Pro" }}\nPaid Total: ${PlatformHelpers.formatPkr(booking.total)}",
                         textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall.tabularMono(),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(Modifier.height(8.dp))
@@ -476,7 +548,9 @@ fun WarrantyCertificateDialog(
                         context,
                         "$brandName Digital Warranty Certificate\nOrder: ${booking.id}\nService: ${booking.serviceName}\nCustomer: ${booking.customerName}\nPro: ${booking.assignedWorkerName}\nAmount Paid: ${PlatformHelpers.formatPkr(booking.total)}\nStatus: 7-Day Workmanship Warranty Active"
                     )
-                }
+                },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.heightIn(min = 48.dp)
             ) {
                 Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(4.dp))
@@ -484,7 +558,7 @@ fun WarrantyCertificateDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) { Text("Close") }
         }
     )
 }
@@ -496,6 +570,7 @@ fun TopUpDialog(
     onSubmit: (method: String, amount: Int, tid: String) -> Unit
 ) {
     val extras = LocalKaamWalaExtras.current
+    val fieldColors = kaamWalaTextFieldColors()
     val methods = listOf("JazzCash", "Easypaisa", "Raast")
     val amounts = listOf(500, 1000, 2000, 5000)
     var selectedMethod by remember { mutableStateOf(methods.first()) }
@@ -505,6 +580,8 @@ fun TopUpDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KaamWalaDialogShape,
+        containerColor = MaterialTheme.colorScheme.surface,
         properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier
             .fillMaxWidth()
@@ -514,10 +591,14 @@ fun TopUpDialog(
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text("Account par bhej kar TID likhein:", style = MaterialTheme.typography.bodySmall)
-                Text(payAccount, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    payAccount,
+                    style = MaterialTheme.typography.labelLarge.tabularMono(),
+                    color = MaterialTheme.colorScheme.primary
+                )
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -538,7 +619,12 @@ fun TopUpDialog(
                         FilterChip(
                             selected = customAmount.toIntOrNull() == amt,
                             onClick = { customAmount = amt.toString(); errorMsg = null },
-                            label = { Text(PlatformHelpers.formatPkr(amt), style = MaterialTheme.typography.labelSmall) }
+                            label = {
+                                Text(
+                                    PlatformHelpers.formatPkr(amt),
+                                    style = MaterialTheme.typography.labelSmall.tabularMono()
+                                )
+                            }
                         )
                     }
                 }
@@ -547,6 +633,9 @@ fun TopUpDialog(
                     onValueChange = { customAmount = it.filter { c -> c.isDigit() }; errorMsg = null },
                     label = { Text("Amount (PKR)") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = fieldColors,
+                    textStyle = LocalTextStyle.current.tabularMono(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth().testTag("topup_amount_input")
                 )
@@ -556,6 +645,9 @@ fun TopUpDialog(
                     label = { Text("Transaction ID (TID)") },
                     placeholder = { Text("08472910384") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = fieldColors,
+                    textStyle = LocalTextStyle.current.tabularMono(),
                     modifier = Modifier.fillMaxWidth().testTag("topup_tid_input")
                 )
                 if (errorMsg != null) {
@@ -573,12 +665,17 @@ fun TopUpDialog(
                         else -> onSubmit(selectedMethod, amt, tid)
                     }
                 },
-                modifier = Modifier.testTag("topup_submit_button")
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag("topup_submit_button")
             ) {
                 Text("Submit")
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) { Text("Cancel") }
+        }
     )
 }
 
@@ -591,6 +688,8 @@ fun OtpVerifyDialog(
     var entered by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KaamWalaDialogShape,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = { Text("Verify Safety Start OTP", style = MaterialTheme.typography.titleLarge) },
         text = {
             Column {
@@ -601,6 +700,9 @@ fun OtpVerifyDialog(
                     onValueChange = { if (it.length <= 4) entered = it.filter { c -> c.isDigit() } },
                     label = { Text("4-Digit OTP") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = kaamWalaTextFieldColors(),
+                    textStyle = LocalTextStyle.current.tabularMono(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth().testTag("worker_otp_input")
                 )
@@ -609,10 +711,15 @@ fun OtpVerifyDialog(
         confirmButton = {
             Button(
                 onClick = { onVerify(entered) },
-                modifier = Modifier.testTag("worker_otp_confirm_button")
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag("worker_otp_confirm_button")
             ) { Text("Start Work") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) { Text("Cancel") }
+        }
     )
 }
 
@@ -629,9 +736,11 @@ fun RateReviewDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KaamWalaDialogShape,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = { Text("Rate ${booking.assignedWorkerName.ifBlank { "Ustad" }}", style = MaterialTheme.typography.titleLarge) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center
@@ -651,21 +760,29 @@ fun RateReviewDialog(
                     value = note,
                     onValueChange = { note = it },
                     label = { Text("Feedback / Comment") },
+                    shape = KaamWalaInputShape,
+                    colors = kaamWalaTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
                 TextButton(
                     onClick = onReportStrike,
                     colors = ButtonDefaults.textButtonColors(contentColor = extras.dangerText),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                 ) {
                     Text("Report Quality Issue (Log Strike)")
                 }
             }
         },
         confirmButton = {
-            Button(onClick = { onSubmitRating(rating, note) }) { Text("Submit Rating") }
+            Button(
+                onClick = { onSubmitRating(rating, note) },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.heightIn(min = 48.dp)
+            ) { Text("Submit Rating") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) { Text("Cancel") }
+        }
     )
 }
 
@@ -683,6 +800,8 @@ fun RescheduleBookingDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KaamWalaDialogShape,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = { Text("Reschedule Order ${booking.id}", style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -700,6 +819,8 @@ fun RescheduleBookingDialog(
                     onValueChange = { address = it; errorMsg = null },
                     label = { Text("Address") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = kaamWalaTextFieldColors(),
                     modifier = Modifier.fillMaxWidth()
                 )
                 if (errorMsg != null) {
@@ -716,12 +837,17 @@ fun RescheduleBookingDialog(
                         onConfirm(selectedSlot, address)
                     }
                 },
-                modifier = Modifier.testTag("confirm_reschedule_button")
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag("confirm_reschedule_button")
             ) {
                 Text("Save Changes")
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) { Text("Cancel") }
+        }
     )
 }
 
@@ -739,6 +865,8 @@ fun PaymentTidDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KaamWalaDialogShape,
+        containerColor = MaterialTheme.colorScheme.surface,
         properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier
             .fillMaxWidth()
@@ -753,14 +881,14 @@ fun PaymentTidDialog(
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
                     "Order ${booking.id} (${booking.serviceName}) ke liye ${PlatformHelpers.formatPkr(booking.total)} is official account par bhej kar TID likhein:",
                     style = MaterialTheme.typography.bodySmall
                 )
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = extras.emeraldTint,
                     border = BorderStroke(1.dp, extras.emeraldBorder),
                     modifier = Modifier.fillMaxWidth()
@@ -772,7 +900,7 @@ fun PaymentTidDialog(
                     ) {
                         Text(
                             text = payAccount,
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.labelLarge.tabularMono(),
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.weight(1f)
                         )
@@ -791,6 +919,9 @@ fun PaymentTidDialog(
                     label = { Text("Transaction ID / Reference (TID)") },
                     placeholder = { Text("e.g. JC99887766") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = kaamWalaTextFieldColors(),
+                    textStyle = LocalTextStyle.current.tabularMono(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("order_payment_tid_input")
@@ -809,13 +940,16 @@ fun PaymentTidDialog(
                         onSubmitTid(tid.trim())
                     }
                 },
-                modifier = Modifier.testTag("order_payment_tid_submit")
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag("order_payment_tid_submit")
             ) {
                 Text("Submit Payment Proof")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) { Text("Cancel") }
         }
     )
 }
@@ -828,6 +962,7 @@ fun AdminWithdrawalDialog(
     onConfirmWithdraw: (amount: Int, method: String, account: String, note: String) -> Unit
 ) {
     val extras = LocalKaamWalaExtras.current
+    val fieldColors = kaamWalaTextFieldColors()
     val methods = listOf("JazzCash", "Easypaisa", "Bank / IBAN", "Raast")
     var selectedMethod by remember { mutableStateOf(methods.first()) }
     var account by remember { mutableStateOf(defaultAccount) }
@@ -837,6 +972,8 @@ fun AdminWithdrawalDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = KaamWalaDialogShape,
+        containerColor = MaterialTheme.colorScheme.surface,
         properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier
             .fillMaxWidth()
@@ -846,11 +983,11 @@ fun AdminWithdrawalDialog(
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
                     "Net Available Platform Balance: ${PlatformHelpers.formatPkr(availableBalance)}",
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.tabularMono(),
                     color = MaterialTheme.colorScheme.primary
                 )
                 Row(
@@ -870,6 +1007,9 @@ fun AdminWithdrawalDialog(
                     onValueChange = { amountText = it.filter { c -> c.isDigit() }; errorMsg = null },
                     label = { Text("Withdraw Amount (PKR)") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = fieldColors,
+                    textStyle = LocalTextStyle.current.tabularMono(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -880,6 +1020,8 @@ fun AdminWithdrawalDialog(
                     onValueChange = { account = it; errorMsg = null },
                     label = { Text("Destination Account / IBAN") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = fieldColors,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("admin_withdraw_account_input")
@@ -889,6 +1031,8 @@ fun AdminWithdrawalDialog(
                     onValueChange = { note = it },
                     label = { Text("Ledger Note / Reference") },
                     singleLine = true,
+                    shape = KaamWalaInputShape,
+                    colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
                 if (errorMsg != null) {
@@ -907,13 +1051,16 @@ fun AdminWithdrawalDialog(
                         else -> onConfirmWithdraw(amt, selectedMethod, account.trim(), note.trim())
                     }
                 },
-                modifier = Modifier.testTag("admin_withdraw_submit_button")
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag("admin_withdraw_submit_button")
             ) {
                 Text("Record & Save")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) { Text("Cancel") }
         }
     )
 }
